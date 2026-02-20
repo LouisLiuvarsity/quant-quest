@@ -1,31 +1,50 @@
 /*
- * SidePanel - Slide-in panel from the right side
- * Routes to different content panels based on activePanel state
- * Style: Glass panel with pixel border accents
+ * SidePanel - Slide-in panel from the right
+ * Routes to different panel views based on activePanel state
  */
 
 import { useGame } from '@/contexts/GameContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { HiringPanel } from './panels/HiringPanel';
 import { ResearchPanel } from './panels/ResearchPanel';
 import { StrategyPanel } from './panels/StrategyPanel';
-import { BacktestPanel } from './panels/BacktestPanel';
 import { LiveTradingPanel } from './panels/LiveTradingPanel';
 import { LeaderboardPanel } from './panels/LeaderboardPanel';
 import { ResearcherDetailPanel } from './panels/ResearcherDetailPanel';
 import { SubscriptionPanel } from './panels/SubscriptionPanel';
+import { FactorLibraryPanel } from './panels/FactorLibraryPanel';
+import { ReportLibraryPanel } from './panels/ReportLibraryPanel';
+import { ReportViewerPanel } from './panels/ReportViewerPanel';
 
 const PANEL_CONFIG: Record<string, { title: string; color: string }> = {
-  'hiring': { title: '🧑‍💼 招聘中心', color: 'oklch(0.55 0.2 265)' },
-  'research': { title: '🔬 因子研究', color: 'oklch(0.75 0.12 200)' },
+  'hiring': { title: '👥 招聘中心', color: 'oklch(0.55 0.2 265)' },
+  'research': { title: '🔬 研究实验室', color: 'oklch(0.75 0.12 200)' },
   'strategy': { title: '📊 策略工坊', color: 'oklch(0.72 0.19 155)' },
-  'backtest': { title: '📈 回测中心', color: 'oklch(0.82 0.15 85)' },
+  'factor-library': { title: '🗄️ 因子库', color: 'oklch(0.55 0.2 265)' },
+  'report-library': { title: '📋 研究报告库', color: 'oklch(0.82 0.15 85)' },
+  'report-viewer': { title: '📄 研究报告', color: 'oklch(0.82 0.15 85)' },
   'live': { title: '🚀 实盘交易', color: 'oklch(0.63 0.22 25)' },
   'leaderboard': { title: '🏆 排行榜', color: 'oklch(0.82 0.15 85)' },
   'researcher-detail': { title: '👤 研究员详情', color: 'oklch(0.55 0.2 265)' },
   'subscription': { title: '⭐ 订阅方案', color: 'oklch(0.82 0.15 85)' },
 };
+
+function PanelContent({ panelId }: { panelId: string }) {
+  switch (panelId) {
+    case 'hiring': return <HiringPanel />;
+    case 'research': return <ResearchPanel />;
+    case 'strategy': return <StrategyPanel />;
+    case 'factor-library': return <FactorLibraryPanel />;
+    case 'report-library': return <ReportLibraryPanel />;
+    case 'report-viewer': return <ReportViewerPanel />;
+    case 'live': return <LiveTradingPanel />;
+    case 'leaderboard': return <LeaderboardPanel />;
+    case 'researcher-detail': return <ResearcherDetailPanel />;
+    case 'subscription': return <SubscriptionPanel />;
+    default: return null;
+  }
+}
 
 export function SidePanel() {
   const { activePanel, setActivePanel, setSelectedResearcher } = useGame();
@@ -57,7 +76,7 @@ export function SidePanel() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="absolute right-0 top-0 bottom-0 w-full sm:w-[400px] z-50 flex flex-col overflow-hidden"
+            className="absolute right-0 top-0 bottom-0 w-full sm:w-[420px] md:w-[460px] z-50 flex flex-col overflow-hidden"
             style={{
               background: 'oklch(0.12 0.02 260 / 0.97)',
               backdropFilter: 'blur(20px) saturate(1.5)',
@@ -86,14 +105,7 @@ export function SidePanel() {
 
             {/* Panel Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {activePanel === 'hiring' && <HiringPanel />}
-              {activePanel === 'research' && <ResearchPanel />}
-              {activePanel === 'strategy' && <StrategyPanel />}
-              {activePanel === 'backtest' && <BacktestPanel />}
-              {activePanel === 'live' && <LiveTradingPanel />}
-              {activePanel === 'leaderboard' && <LeaderboardPanel />}
-              {activePanel === 'researcher-detail' && <ResearcherDetailPanel />}
-              {activePanel === 'subscription' && <SubscriptionPanel />}
+              <PanelContent panelId={activePanel} />
             </div>
 
             {/* Bottom edge decoration */}

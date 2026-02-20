@@ -1,0 +1,12 @@
+Research panel is working great! Shows:
+1. Select researcher: 张明远 (selected, highlighted blue), Sarah, 李浩然
+2. Select task type: 因子挖掘 ~50,000 tokens, 策略回测 ~30,000, 策略优化 ~80,000
+3. Configure parameters:
+   - Natural language factor description textarea with placeholder
+   - K-line periods: 1分钟, 5分钟, 15分钟, 1小时, 4小时, 1天
+   - Universe selection: 加密货币 Top50, DeFi 代币, A股 沪深300, A股 中证500, 美股 S&P500
+   - Backtest range: date pickers (2024-01 to 2025-12)
+4. Estimated cost shown: ~50,000 Token
+5. 🚀 开始研究 button at bottom
+
+This is exactly what was requested - user configures research with NL input, selects parameters.

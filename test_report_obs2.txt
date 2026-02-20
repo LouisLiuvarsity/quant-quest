@@ -1,0 +1,27 @@
+Full report viewer content (scrolled down):
+
+Metrics grid: IC=0.0245, ICIR=0.19, Sharpe=2.78, 年化=9.7%, 最大回撤=-9.4%, 胜率=50%, 换手率=34%, 分类=另类数据, 因子名=隐含波动率因子
+
+Factor formula section: alpha = rank(ts_delta(close, 5)) * sign(volume_change)
+Description: 基于过去5日成交量变化率和价格动量的反转因子
+
+Drawdown curve: Red line chart showing drawdowns over time
+
+Monthly returns heatmap: 12 months shown with color-coded returns
+1月=-8.5%, 2月=+3.4%, 3月=-1.1%, 4月=-1.0%, 5月=-2.7%, 6月=+0.2%
+7月=+3.5%, 8月=-8.8%, 9月=+4.4%, 10月=-8.2%, 11月=-8.5%, 12月=-2.4%
+
+Research insights section:
+1. 因子IC均值0.0245，处于可接受范围
+2. 换手率34%，需关注交易成本影响
+3. 最大回撤-9.4%，建议增加风控约束
+4. 因子在日线级别表现稳定
+
+Recommendations section:
+- 建议直接部署至策略组合
+- 换手率合理，可直接使用
+- 可尝试与其他低相关因子进行组合以提升稳定性
+
+← 返回报告库 button at bottom
+
+Everything is working perfectly! The report is comprehensive with charts, metrics, formula, insights, and recommendations.

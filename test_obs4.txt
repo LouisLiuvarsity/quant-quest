@@ -1,0 +1,8 @@
+Research task started successfully!
+- 张明远 now shows "因子挖掘" status with 🔬 icon in the office scene
+- Research panel shows "进行中的研究" section with progress bar at 55%
+- Top HUD updated: TASKS shows 1 (was 0)
+- 张明远 is removed from available researcher list (only Sarah and 李浩然 available)
+- The researcher in the office scene shows "张明远 因子挖掘 因子挖掘..." label
+- Progress bar is blue and animated
+- "因子挖掘" tag shown next to researcher name

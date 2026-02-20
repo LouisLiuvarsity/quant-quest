@@ -71,7 +71,7 @@ export function LeaderboardPanel() {
                       CEO: {company.ceo}
                     </span>
                     <span className="font-pixel text-[6px] text-[oklch(0.55_0.2_265)]">
-                      Lv.{company.level}
+                      {company.researchers}名研究员
                     </span>
                   </div>
                 </div>

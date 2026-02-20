@@ -1,0 +1,9 @@
+Research completed successfully!
+- Credits decreased from 10.00M to 9.94M (token cost deducted)
+- FACTORS count increased from 0 to 1
+- TASKS back to 0 (completed)
+- Notification badge shows "2" (likely notifications about completion)
+- 张明远 shows "✅ 研究完成 - 点击查看" status in office scene
+- Research panel shows "已完成" section with 张明远's completed task, "点击查看" link
+- 张明远 is available again for new tasks (shown in "分配新任务" section)
+- Need to test clicking "点击查看" to see the research report

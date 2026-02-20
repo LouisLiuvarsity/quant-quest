@@ -1,0 +1,12 @@
+The research report viewer is now working correctly! The canvas gradient error is fixed.
+
+Report shows:
+1. Header: "因子研究报告: 隐含波动率因子" with date and summary text
+2. Researcher: 张明远, Token cost: 64,824
+3. Equity curve chart (green line, upward trend) with "年化 9.7%"
+4. Key metrics grid: IC=0.0245, ICIR=0.19, Sharpe=2.78, 年化=9.7%, 最大回撤=-9.4%, 胜率=50%, 换手率=34%, 分类=另类数据, 因子名=隐含波动率因子
+5. Factor formula: alpha = rank(ts_delta(close, 5)) * sign(volume_change)
+6. Drawdown curve (red line)
+7. More content below (monthly returns, insights, recommendations)
+
+All charts render correctly with proper colors (green for equity, red for drawdown).

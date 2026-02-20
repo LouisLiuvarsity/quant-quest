@@ -261,7 +261,7 @@ export function IntroScreen({ onStart }: IntroScreenProps) {
                   <div className="space-y-2 font-display text-xs text-[oklch(0.55_0.02_260)] leading-relaxed">
                     <p className="flex items-start gap-2">
                       <span className="text-[oklch(0.55_0.2_265)] mt-0.5 shrink-0">▸</span>
-                      积分用于支付研究员工资，耗尽则公司停止运转
+                      积分按研究任务消耗的 Token 扣费，耗尽则公司停止运转
                     </p>
                     <p className="flex items-start gap-2">
                       <span className="text-[oklch(0.55_0.2_265)] mt-0.5 shrink-0">▸</span>

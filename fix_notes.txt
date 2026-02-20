@@ -1,0 +1,14 @@
+Remaining TS errors:
+1. ReportViewerPanel.tsx references r.config which doesn't exist on ResearchReport type
+   - Need to fix: use the task config from the report's associated task, or store config in report
+   - Also references r.taskType (should be r.type), r.equityCurve, r.metrics, r.monthlyReturns, r.factorAnalysis, r.analysisText
+   - The ResearchReport type has factorResult, backtestResult, optimizationResult instead
+   - Need to completely rewrite ReportViewerPanel to match the actual ResearchReport type
+
+2. LeaderboardPanel.tsx references .level which doesn't exist on CompanyRanking
+   - Need to fix: remove .level reference
+
+3. StrategyPanel.tsx, LiveTradingPanel.tsx, SubscriptionPanel.tsx, BacktestPanel.tsx may have stale references
+   - Need to check and fix
+
+4. IntroScreen.tsx - needs to update rules text (remove daily salary references)

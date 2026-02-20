@@ -1,0 +1,5 @@
+Setup screen looks good:
+- Rules text updated: "积分按研究任务消耗的 Token 扣费，耗尽则公司停止运转"
+- Initial resources shown correctly: 10,000,000 credits, 3 researchers, 3 strategy limit
+- Pro version info shown: ¥20/月, 配资1000U, 盈利可提现 50%-90%
+- Clean layout, no NEXT DAY references

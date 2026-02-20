@@ -1,20 +1,23 @@
 /*
  * TopHUD - Game status bar at the top
- * Shows: Company name, level, credits, day, PnL, notifications
+ * Shows: Company name, token balance, active tasks, PnL, notifications
  * Style: Dark glass panel with pixel accents
+ * No day/turn system - real-time
  */
 
 import { useGame } from '@/contexts/GameContext';
-import { Bell, FastForward } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { useState } from 'react';
 
 export function TopHUD() {
-  const { state, advanceDay, setActivePanel } = useGame();
+  const { state, setActivePanel } = useGame();
   const [showNotifs, setShowNotifs] = useState(false);
   const unreadCount = state.notifications.filter(n => !n.read).length;
 
   const creditsPercent = (state.credits / state.totalCredits) * 100;
   const creditsColor = creditsPercent > 50 ? 'oklch(0.72 0.19 155)' : creditsPercent > 20 ? 'oklch(0.82 0.15 85)' : 'oklch(0.63 0.22 25)';
+
+  const activeTasks = state.researchers.filter(r => r.status === 'researching').length;
 
   return (
     <div
@@ -43,20 +46,20 @@ export function TopHUD() {
               {state.companyName}
             </h1>
             <span className="font-pixel text-[6px] text-[oklch(0.55_0.2_265)]">
-              Lv.{state.companyLevel}
+              {state.researchers.length} 研究员
             </span>
           </div>
         </div>
 
         <div className="h-5 w-px bg-[oklch(0.22_0.025_260)]" />
 
-        {/* Credits - always visible */}
+        {/* Token Balance */}
         <div className="flex items-center gap-1.5">
           <span className="text-sm animate-coin-spin">🪙</span>
           <div>
             <p className="font-mono-data text-[11px] font-bold leading-tight" style={{ color: creditsColor }}>
               {state.credits >= 1_000_000
-                ? `${(state.credits / 1_000_000).toFixed(1)}M`
+                ? `${(state.credits / 1_000_000).toFixed(2)}M`
                 : state.credits.toLocaleString()
               }
             </p>
@@ -70,11 +73,15 @@ export function TopHUD() {
         </div>
       </div>
 
-      {/* Center: Day & PnL */}
+      {/* Center: Active Tasks & PnL */}
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* Active tasks indicator */}
         <div className="text-center">
-          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">DAY</p>
-          <p className="font-mono-data text-sm font-bold text-[oklch(0.92_0.01_260)]">{state.day}</p>
+          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">TASKS</p>
+          <p className="font-mono-data text-sm font-bold text-[oklch(0.55_0.2_265)]">
+            {activeTasks > 0 && <span className="inline-block w-1.5 h-1.5 bg-[oklch(0.55_0.2_265)] animate-pulse mr-1 align-middle" />}
+            {activeTasks}
+          </p>
         </div>
 
         <div className="hidden sm:block h-5 w-px bg-[oklch(0.22_0.025_260)]" />
@@ -86,17 +93,14 @@ export function TopHUD() {
           </p>
         </div>
 
-        <button
-          onClick={advanceDay}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-[oklch(0.18_0.025_260)] border-2 border-[oklch(0.3_0.03_260)] hover:bg-[oklch(0.22_0.03_260)] hover:border-[oklch(0.55_0.2_265)] transition-all font-pixel text-[7px] text-[oklch(0.75_0.12_200)] active:translate-y-0.5"
-          style={{
-            boxShadow: 'inset -1px -1px 0 rgba(0,0,0,0.3), inset 1px 1px 0 rgba(255,255,255,0.05)',
-          }}
-          title="推进一天"
-        >
-          <FastForward size={11} />
-          <span className="hidden sm:inline">NEXT DAY</span>
-        </button>
+        <div className="hidden sm:block h-5 w-px bg-[oklch(0.22_0.025_260)]" />
+
+        <div className="hidden sm:block text-center">
+          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">FACTORS</p>
+          <p className="font-mono-data text-sm font-bold text-[oklch(0.75_0.12_200)]">
+            {state.factors.length}
+          </p>
+        </div>
       </div>
 
       {/* Right: Plan + Notifications */}
@@ -126,7 +130,6 @@ export function TopHUD() {
             )}
           </button>
 
-          {/* Notification dropdown */}
           {showNotifs && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
@@ -140,7 +143,7 @@ export function TopHUD() {
                       <p className="font-display text-xs text-[oklch(0.45_0.02_260)]">暂无通知</p>
                     </div>
                   ) : (
-                    state.notifications.map(n => (
+                    state.notifications.slice(0, 20).map(n => (
                       <div
                         key={n.id}
                         className={`px-3 py-2.5 border-b border-[oklch(0.18_0.02_260)] last:border-0 ${!n.read ? 'bg-[oklch(0.14_0.02_260)]' : ''}`}

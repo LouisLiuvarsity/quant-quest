@@ -1,0 +1,9 @@
+Main game screen observations:
+- Office scene renders correctly with pixel art background
+- 3 researchers visible: 张明远, Sarah, 李浩然 - all showing 💤 (idle) status
+- 3 empty slots showing "+ 招聘" for hiring new researchers
+- Top HUD shows: company name, researcher count, credits (10.00M), TASKS 0, TOTAL P&L +$0, FACTORS 0
+- FREE badge visible (subscription status)
+- Bottom toolbar has 7 buttons: 招聘, 研究, 策略, 因子库, 报告, 实盘, 排行
+- No NEXT DAY button - good, removed as requested
+- Layout looks clean and functional
