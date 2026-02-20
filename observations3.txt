@@ -1,0 +1,9 @@
+The panels DO work. The issue is that the browser automation tool's click on the bottom toolbar buttons might not be registering properly because the buttons are at the very bottom edge and may be partially obscured by the preview mode bar. The JS click worked fine and the hiring panel opened correctly.
+
+The hiring panel looks great:
+- Shows team size 3/6 with progress bar
+- Lists 4 candidates with their stats, salary, mood
+- Hire buttons with cost display
+- Specialty labels with color coding
+
+Need to fix: The bottom toolbar buttons need more padding/margin at the bottom to ensure they're fully clickable even with the preview bar.

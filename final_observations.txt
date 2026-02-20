@@ -1,0 +1,30 @@
+Final testing observations:
+
+NEXT DAY button works correctly:
+- Day advanced from 36 to 37
+- Credits decreased (salary deduction working)
+- Total P&L updated to +$12,644.695 (live strategy PnL simulation working)
+- Researcher progress should have advanced
+
+Issues found:
+1. The leaderboard panel is still open after clicking NEXT DAY - the panel should close or the backdrop click should be working. Actually this is fine, the panel stays open which is expected behavior.
+2. P&L shows too many decimal places (+$12,644.695) - should be formatted to 2 decimal places or rounded
+3. Bottom toolbar buttons are partially hidden by the preview mode banner (this is only in preview mode, not in production)
+
+Fixes needed:
+1. Format P&L to whole numbers or 2 decimal places
+2. The bottom toolbar needs a small padding-bottom to account for potential browser chrome
+
+All core features are working:
+- Intro screen with START GAME
+- Company setup screen with name input
+- Main game view with pixel art office
+- Researcher sprites with status bubbles and animations
+- Top HUD with all stats
+- Bottom toolbar with 6 action buttons
+- Hiring panel with candidate cards
+- Researcher detail panel
+- Leaderboard panel
+- NEXT DAY advancement with salary deduction and PnL simulation
+- Notification system
+- Plan badge (FREE/PRO)

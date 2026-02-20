@@ -1,0 +1,14 @@
+Intro Screen looks great:
+- Background image visible with pixel grid overlay
+- "QUANT QUEST" title in gold pixel font with glow effect
+- Subtitle "量化基金经营模拟器" in cyan
+- Feature pills visible (招聘研究员, 因子挖掘, 策略组合, 回测验证, 实盘模拟)
+- START GAME button prominent in blue with pixel style
+- Corner decorations visible
+- Version text at bottom
+- No TypeScript errors, no build errors
+
+Need to test:
+1. Click START GAME to see setup screen
+2. Click 开始经营 to see main game
+3. Test all panels and interactions

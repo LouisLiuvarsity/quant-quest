@@ -1,0 +1,16 @@
+Screenshot Observation 2 - Main Game Screen:
+- The office scene renders beautifully with the pixel art background
+- Top HUD shows company name, credits, day, PnL, and NEXT DAY button
+- Three researchers are visible at their desks with status icons
+- Three empty desk slots show "+" for hiring
+- Bottom toolbar has all 6 action buttons
+- Mini stats overlay shows factors/strategies/live counts in bottom-left
+- Company info label in top-right of the office
+
+Issues to fix:
+1. The bottom toolbar is partially cut off by the preview mode bar - need to add some bottom padding
+2. The credits display on mobile might be too small - but looks ok on desktop
+3. The researcher positions could be better aligned with the actual desk positions in the image
+4. The office label in top-right overlaps slightly with the office image border
+
+Overall the main game view looks great - the pixel office background works perfectly as the game world.

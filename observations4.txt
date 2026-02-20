@@ -1,0 +1,20 @@
+All panels tested and working:
+
+1. Hiring Panel - Shows team 3/6, 4 candidates with stats, hire buttons with costs
+2. Strategy Panel - Shows 3 strategies with status, factors, backtest results, live PnL
+3. Leaderboard Panel - "HALL OF FAME" header, 8 ranked companies, player highlighted at #4
+4. Live Trading Panel - Shows free mode, total PnL, live strategy with trade log
+5. Research Panel - Shows idle researcher for task assignment, 5 discovered factors with IC/Sharpe/Turnover
+6. Backtest Panel - Shows strategies with equity curves (SVG), performance metrics
+
+Issues to fix:
+- Bottom toolbar buttons don't respond to browser automation clicks (but work with JS clicks) - likely z-index or position issue
+- The intro screen could use more polish
+- Need to ensure the researcher click from office scene also works properly
+- The overall look is very good - pixel art office background, dark glass panels, pixel fonts all working
+
+Major improvements needed:
+1. Fix bottom toolbar z-index/clickability
+2. Add custom scrollbar styling
+3. Improve intro screen with better game setup flow
+4. Add more micro-interactions and polish

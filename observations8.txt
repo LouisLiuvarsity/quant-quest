@@ -1,0 +1,14 @@
+Researcher Detail Panel observations:
+
+The panel shows 张明远's details:
+- Header: 👤 研究员详情 with indigo accent
+- Avatar emoji (large), name "张明远", specialty badge "因子研究", Lv.3
+- Current status: 研究中
+- Task: 动量因子挖掘
+- Progress bar: 72% with animated fill
+- Stats grid: 日薪 5,000 | 心情 85% | 发现因子 12 | 入职日期 2026-01-15
+- Mood bar: Green at 85% with "状态极佳，研究效率+20%" text
+- The panel styling is consistent with the dark theme
+
+Everything looks good. The bottom toolbar buttons are partially cut off by the preview mode banner.
+Need to fix: The bottom toolbar buttons are being hidden behind the preview mode banner.

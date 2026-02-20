@@ -1,0 +1,15 @@
+Main game screen observations:
+
+The game looks great overall. The pixel art office background is displayed nicely with the isometric view. Key observations:
+
+1. Top HUD: Company name, level, credits (7.8M), day (36), total P&L (+$12,580), NEXT DAY button, FREE badge, notification bell - all visible and working
+2. Office scene: The pixel art office background is displayed with researchers positioned at desks. Status bubbles appear for researching researchers (张明远 and Sarah Chen show their tasks with progress bars). 李浩然 shows idle status with 💤.
+3. Empty desks: 3 empty desk positions with "+" and "招聘" labels visible
+4. Bottom toolbar: 6 buttons visible - 招聘, 研究, 策略, 回测, 实盘, 排行
+5. Mini stats overlay: Bottom-left shows 因子(5), 策略(3), 实盘(1) counts
+6. Office label: Top-right shows company name and researcher count
+
+Issues to check:
+- Bottom toolbar buttons appear at very bottom edge, need to verify they're fully clickable
+- The toolbar text is very small, might need to scroll down to see full buttons
+- Need to test clicking each panel button

@@ -1,0 +1,11 @@
+Screenshot Observation 1 - Intro Screen:
+- The intro screen renders correctly with the hero banner background
+- QUANTQUEST title shows twice - once from the image and once from the h1 text. Need to fix the h1 positioning or remove the duplicate
+- The pixel font tags (招聘研究员, 因子挖掘, etc.) render well
+- START GAME button is visible and styled correctly
+- Overall dark theme with pixel aesthetic looks good
+- The background image title "QUANTQUEST" overlaps with the CSS-rendered title - need to adjust positioning
+
+Issues to fix:
+1. Title overlap - the h1 QUANTQUEST overlaps with the image's built-in text
+2. Could improve the vertical spacing
