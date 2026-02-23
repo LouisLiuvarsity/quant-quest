@@ -1,0 +1,16 @@
+After clicking 确认并继续, the task advanced:
+- TASKS counter in HUD changed from 0 to 1
+- 张明远 status changed from "等待CEO决策" to "因子挖掘... 🔬"
+- Task is now auto-running through steps
+- Progress: Step 9/17, ~50% progress, 60K tokens consumed
+- Real-time log shows:
+  - 开始执行 EWMA 平滑...
+  - 计算 EWMA 平滑...
+  - 信号平滑完成
+  - 开始执行 仓位映射...
+  - Stoch 仓位映射 + 波动率调整...
+  - 仓位序列生成完成
+
+The task is auto-advancing through non-interactive steps with real-time log output. It will pause again at the next 🔀 decision point.
+
+Let me wait and check if it hits another decision point.

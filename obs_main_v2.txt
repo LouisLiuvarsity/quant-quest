@@ -1,0 +1,15 @@
+Main game screen looks great!
+- Office scene with pixel art background, 3 researchers visible (张明远, Sarah, 李浩然)
+- All showing 💤 idle status
+- 3 empty desk slots with + 招聘 buttons
+- Top HUD: company name, 3 researchers, 10.00M credits, TASKS 0, TOTAL P&L +$0, FACTORS 0
+- FREE badge and settings icon in top right
+- Bottom toolbar: 招聘, 研究, 策略, 因子库, 报告, 实盘, 排行
+- Mini researcher icons in bottom left corner
+- Office background is the generated pixel art image - looks great
+
+Now need to test:
+1. Research panel - the core workflow
+2. Factor library
+3. Report library
+4. All other panels

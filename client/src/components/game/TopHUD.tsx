@@ -98,7 +98,7 @@ export function TopHUD() {
         <div className="hidden sm:block text-center">
           <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">FACTORS</p>
           <p className="font-mono-data text-sm font-bold text-[oklch(0.75_0.12_200)]">
-            {state.factors.length}
+            {state.factorCards.length}
           </p>
         </div>
       </div>

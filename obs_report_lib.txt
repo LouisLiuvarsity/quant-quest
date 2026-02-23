@@ -1,0 +1,14 @@
+Report Library panel shows:
+
+Stats: 1 report total, 1 因子挖掘 type, 75,000 total tokens consumed
+Filter buttons: 全部, 因子挖掘, 多因子合成
+
+Report card:
+- Type badge: 因子挖掘 (blue)
+- Title: 因子研究报告: 动量反转因子_19
+- Summary text truncated
+- Metrics: Sharpe 1.28, IC 0.058
+- Researcher: 张明远, 75,000 tokens
+- Button: 档案卡 →
+
+All panels are working correctly. The full workflow is functional end-to-end.

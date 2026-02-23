@@ -1,0 +1,11 @@
+After confirming project config, the research panel now shows:
+- Project config summary: 1d, IS/VAL/OOS, 每月初
+- 修改 button to change config
+- 发起新研究 section with 3 researchers:
+  - 张明远: 因子挖掘 and 多因子合成 buttons
+  - Sarah Ch...: 因子挖掘 and 多因子合成 buttons
+  - 李浩然: 因子挖掘 and 多因子合成 buttons
+- Each researcher has task assignment options
+- Notification badge "1" appeared in top right
+
+This is the task assignment view. Let me click 因子挖掘 for 张明远 to test the workflow.

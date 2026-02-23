@@ -3,17 +3,21 @@
  * Filter by type, sort by date, click to view full report
  */
 
-import { useGame, TASK_TYPE_LABELS, type TaskType, type ResearchReport } from '@/contexts/GameContext';
+import { useGame, type TaskType, type ResearchReport } from '@/contexts/GameContext';
 import { useState } from 'react';
 
+const TYPE_LABELS: Record<TaskType, string> = {
+  single_factor: '因子挖掘',
+  multi_factor: '多因子合成',
+};
+
 const TYPE_COLORS: Record<TaskType, string> = {
-  factor_mining: 'oklch(0.55 0.2 265)',
-  strategy_backtest: 'oklch(0.82 0.15 85)',
-  optimization: 'oklch(0.72 0.19 155)',
+  single_factor: 'oklch(0.55 0.2 265)',
+  multi_factor: 'oklch(0.72 0.19 155)',
 };
 
 export function ReportLibraryPanel() {
-  const { state, setActivePanel, setSelectedReport } = useGame();
+  const { state, setActivePanel, setSelectedReport, setSelectedFactorCard, setSelectedPortfolioCard } = useGame();
   const [filterType, setFilterType] = useState<string>('all');
 
   const filteredReports = state.reports.filter(
@@ -27,28 +31,38 @@ export function ReportLibraryPanel() {
     setActivePanel('report-viewer');
   };
 
+  const handleViewCard = (report: ResearchReport) => {
+    if (report.factorCardId) {
+      const fc = state.factorCards.find(f => f.id === report.factorCardId);
+      if (fc) { setSelectedFactorCard(fc); setActivePanel('report-viewer'); return; }
+    }
+    if (report.portfolioCardId) {
+      const pc = state.portfolioCards.find(p => p.id === report.portfolioCardId);
+      if (pc) { setSelectedPortfolioCard(pc); setActivePanel('report-viewer'); return; }
+    }
+  };
+
   const getReportPreview = (report: ResearchReport) => {
-    if (report.factorResult) {
-      return {
-        mainStat: `Sharpe ${report.factorResult.sharpe.toFixed(2)}`,
-        subStat: `IC ${report.factorResult.ic.toFixed(3)}`,
-        isPositive: report.factorResult.sharpe > 1.0,
-      };
+    // Try to find linked factor or portfolio card for stats
+    if (report.factorCardId) {
+      const fc = state.factorCards.find(f => f.id === report.factorCardId);
+      if (fc) {
+        return {
+          mainStat: `Sharpe ${fc.valPerformance.medianSharpe.toFixed(2)}`,
+          subStat: `IC ${fc.profile.ic.toFixed(3)}`,
+          isPositive: fc.status === 'passed',
+        };
+      }
     }
-    if (report.backtestResult) {
-      return {
-        mainStat: `${(report.backtestResult.totalReturn * 100).toFixed(1)}%`,
-        subStat: `Sharpe ${report.backtestResult.sharpe.toFixed(2)}`,
-        isPositive: report.backtestResult.totalReturn > 0,
-      };
-    }
-    if (report.optimizationResult) {
-      const improvement = ((report.optimizationResult.optimizedSharpe / report.optimizationResult.originalSharpe - 1) * 100).toFixed(0);
-      return {
-        mainStat: `+${improvement}%`,
-        subStat: `Sharpe ${report.optimizationResult.optimizedSharpe.toFixed(2)}`,
-        isPositive: true,
-      };
+    if (report.portfolioCardId) {
+      const pc = state.portfolioCards.find(p => p.id === report.portfolioCardId);
+      if (pc) {
+        return {
+          mainStat: `Sharpe ${pc.oosPerformance.medianSharpe.toFixed(2)}`,
+          subStat: pc.multiIsBetter ? '优于单因子' : '不如单因子',
+          isPositive: pc.status === 'adopted',
+        };
+      }
     }
     return { mainStat: '—', subStat: '', isPositive: false };
   };
@@ -64,7 +78,7 @@ export function ReportLibraryPanel() {
         <div className="bg-[oklch(0.14_0.02_260)] border border-[oklch(0.22_0.025_260)] p-2.5 text-center">
           <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">因子报告</p>
           <p className="font-mono-data text-lg font-bold text-[oklch(0.75_0.12_200)]">
-            {state.reports.filter(r => r.type === 'factor_mining').length}
+            {state.reports.filter(r => r.type === 'single_factor').length}
           </p>
         </div>
         <div className="bg-[oklch(0.14_0.02_260)] border border-[oklch(0.22_0.025_260)] p-2.5 text-center">
@@ -92,7 +106,7 @@ export function ReportLibraryPanel() {
           >
             全部
           </button>
-          {(Object.keys(TASK_TYPE_LABELS) as TaskType[]).map(type => (
+          {(Object.keys(TYPE_LABELS) as TaskType[]).map(type => (
             <button
               key={type}
               onClick={() => setFilterType(type)}
@@ -106,7 +120,7 @@ export function ReportLibraryPanel() {
                 color: filterType === type ? TYPE_COLORS[type] : undefined,
               }}
             >
-              {TASK_TYPE_LABELS[type]}
+              {TYPE_LABELS[type]}
             </button>
           ))}
         </div>
@@ -135,17 +149,16 @@ export function ReportLibraryPanel() {
             return (
               <div
                 key={report.id}
-                onClick={() => handleViewReport(report)}
                 className="bg-[oklch(0.16_0.025_260)] border-2 border-[oklch(0.25_0.03_260)] p-3 cursor-pointer hover:border-[oklch(0.4_0.1_265)] transition-all group"
               >
-                <div className="flex items-start justify-between mb-1.5">
+                <div className="flex items-start justify-between mb-1.5" onClick={() => handleViewReport(report)}>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span
                         className="font-pixel text-[6px] px-1.5 py-0.5 border"
                         style={{ color: typeColor, borderColor: typeColor }}
                       >
-                        {TASK_TYPE_LABELS[report.type]}
+                        {TYPE_LABELS[report.type]}
                       </span>
                       <span className="font-mono-data text-[8px] text-[oklch(0.4_0.02_260)]">
                         {report.createdAt}
@@ -168,11 +181,21 @@ export function ReportLibraryPanel() {
 
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-[oklch(0.2_0.02_260)]">
                   <span className="font-display text-[10px] text-[oklch(0.45_0.02_260)]">
-                    研究员: {report.researcherName}
+                    研究员: {report.researcherName || '—'}
                   </span>
-                  <span className="font-mono-data text-[9px] text-[oklch(0.82_0.15_85)]">
-                    🪙 {report.tokenCost.toLocaleString()}
-                  </span>
+                  <div className="flex gap-2 items-center">
+                    <span className="font-mono-data text-[9px] text-[oklch(0.82_0.15_85)]">
+                      🪙 {report.tokenCost.toLocaleString()}
+                    </span>
+                    {(report.factorCardId || report.portfolioCardId) && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleViewCard(report); }}
+                        className="font-pixel text-[6px] px-2 py-0.5 border border-[oklch(0.55_0.2_265)] text-[oklch(0.55_0.2_265)] hover:bg-[oklch(0.55_0.2_265_/_0.1)] transition-all"
+                      >
+                        档案卡 →
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

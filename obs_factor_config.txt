@@ -1,0 +1,11 @@
+Factor mining task config panel shows:
+- Title: 因子挖掘任务 - 研究员: 张明远 | 17 步工作流
+- Factor type selection grid: 动量型, 趋势型, 均值回复型, 波动率型, 量价型, 自定义
+- Each type has a subtitle description
+- Factor description textarea with placeholder text about 20-day momentum
+- Agent complexity slider (fud_period) with range input, currently at 5
+- Shows: 预估 ~105K tokens, 当前余额 10.00M
+- Button: 开始因子挖掘 (17 步)
+- ← 返回 button to go back
+
+The UI is well-structured. Let me click 动量型 and start the research.

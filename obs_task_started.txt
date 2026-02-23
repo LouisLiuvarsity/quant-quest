@@ -1,0 +1,9 @@
+Research task started successfully! Observations:
+- 张明远 now shows status bubble: "因子研究" with "🔀 等待CEO决策 - 点击查看"
+- The researcher's desk area shows a dark info panel with task status
+- Other researchers (Sarah, 李浩然) still show 💤 idle
+- Notification badge changed from 1 to 2
+- Panel closed after starting the task (setActivePanel(null))
+- The task is at a 🔀 decision point, waiting for CEO input
+
+The workflow is working! The task started at Step 0 (project config already done) and hit the first interactive step. Let me click on the researcher to see the decision point.

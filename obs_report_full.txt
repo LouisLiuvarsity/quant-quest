@@ -1,0 +1,14 @@
+Full report view shows:
+
+1. Summary section with key findings
+2. Key Metrics section (factor type, parameters, RankIC, ICIR, IC win rate, stability, best group)
+3. Suggestions section (3 actionable items)
+4. Complete workflow steps list (S0-S16) with color-coded badges:
+   - Green circles for completed steps
+   - Yellow circles for decision points (S2, S4, S6)
+   - All 17 steps listed with names matching the workflow document
+5. Button at bottom: 查看因子档案卡详情 →
+
+The report is comprehensive and well-structured. The workflow steps accurately reflect the single-factor workflow document.
+
+Now let me test the factor library and other panels to verify everything works end-to-end.

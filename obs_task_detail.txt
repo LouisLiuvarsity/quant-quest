@@ -1,0 +1,25 @@
+Task detail view shows the full workflow progression:
+
+Top section: Research lab with project config (1d, IS/VAL/OOS, 每月初) and 修改 button.
+
+Available researchers section: Sarah and 李浩然 are idle with 因子挖掘/多因子合成 buttons.
+
+Active research section (进行中的研究):
+- Task: 因子挖掘, 30% progress
+- Step indicator: Step 5/17 with progress bar
+- Status: 等待CEO决策
+
+Real-time log stream showing timestamps:
+- 14:38:21 ✓ 预测窗口 fwd_period 已设定
+- 14:38:23 ▸ 开始执行 定义信号逻辑...
+- 14:38:24 ▸ 构建信号管道 (raw_hold → 反转 → max_hold)
+- 14:38:25 ▸ 开始执行 构造原始信号
+- 14:38:26 ✓ 构造原始信号 执行完成
+- 14:38:28 🔀 等待 CEO 决策...
+
+CEO Decision point:
+- Yellow highlighted box: CEO 决策点 - 构造初始信号
+- Input field: "用自然语言定义因子逻辑"
+- Button: ✅ 确认并继续
+
+This is exactly the interactive workflow! The task auto-ran through steps 0-4 and paused at step 5 for CEO input.

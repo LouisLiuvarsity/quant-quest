@@ -1,0 +1,12 @@
+Research panel opened! Shows project configuration step:
+- Title: 研究实验室
+- Warning: 首次研究需要设定项目配置，此配置将被所有后续因子研究继承
+- K-line period selection: 1分钟, 5分钟, 15分钟, 1小时, 4小时, 1天
+- Universe selection: Crypto 市值Top100 ∩ 成交额Top80, Crypto 市值Top50, DeFi 代币 Top30
+- Data split: 三段切分 (IS/VAL/OOS), 两段切分 (IS/TEST)
+- Date range fields visible
+- 确认项目配置 button at bottom
+
+This is the project config step - first time setup before any research.
+Need to scroll down to see date range fields.
+Let me confirm the config and test the research workflow.

@@ -1,0 +1,9 @@
+Strategy panel (策略工坊) shows two sections:
+
+1. 组合档案卡 section: "暂无组合档案卡" with message "完成多因子合成后将生成组合档案卡". Button: "去发起多因子合成 →"
+
+2. 策略工坊 section: "先完成因子挖掘，通过的因子可以组装为策略". Button: "去研究 →"
+
+This correctly shows that strategies require completed factors first, and multi-factor synthesis generates portfolio cards. The flow is logically consistent.
+
+All panels tested and working. Now let me save a checkpoint.

@@ -4,7 +4,19 @@
  * Click a researcher to see their status panel
  */
 
-import { useGame, ROLE_LABELS, ROLE_COLORS, TASK_TYPE_LABELS, type Researcher } from '@/contexts/GameContext';
+import { useGame, type Researcher } from '@/contexts/GameContext';
+
+const ROLE_COLORS: Record<string, string> = {
+  '因子研究': 'oklch(0.55 0.2 265)',
+  '多因子合成': 'oklch(0.72 0.19 155)',
+  '策略优化': 'oklch(0.82 0.15 85)',
+  '全能': 'oklch(0.75 0.12 200)',
+};
+
+const TASK_TYPE_LABELS: Record<string, string> = {
+  single_factor: '因子挖掘',
+  multi_factor: '多因子合成',
+};
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
@@ -23,6 +35,7 @@ const STATUS_EMOJIS: Record<string, string> = {
   idle: '💤',
   researching: '🔬',
   completed: '✅',
+  waiting: '🔀',
 };
 
 function ResearcherSprite({ researcher, position, onSelect }: {
@@ -42,7 +55,7 @@ function ResearcherSprite({ researcher, position, onSelect }: {
   }, [researcher.status]);
 
   const typingDots = '.'.repeat(typingFrame + 1);
-  const roleColor = ROLE_COLORS[researcher.role];
+  const roleColor = ROLE_COLORS[researcher.role] || 'oklch(0.55 0.2 265)';
 
   return (
     <div
@@ -62,7 +75,7 @@ function ResearcherSprite({ researcher, position, onSelect }: {
     >
       {/* Status bubble */}
       <AnimatePresence>
-        {(isHovered || researcher.status === 'completed' || researcher.status === 'researching') && (
+        {(isHovered || researcher.status === 'completed' || researcher.status === 'researching' || researcher.status === 'waiting') && (
           <motion.div
             initial={{ opacity: 0, y: 5, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -77,18 +90,20 @@ function ResearcherSprite({ researcher, position, onSelect }: {
               <p className="font-pixel text-[7px] text-[oklch(0.92_0.01_260)] mb-0.5 flex items-center gap-1">
                 {researcher.skin.name}
                 <span className="text-[6px]" style={{ color: roleColor }}>
-                  {ROLE_LABELS[researcher.role]}
+                  {researcher.role}
                 </span>
               </p>
               <p className="font-pixel text-[6px]" style={{ color: roleColor }}>
                 {researcher.status === 'researching' && researcher.currentTask
                   ? `${TASK_TYPE_LABELS[researcher.currentTask.type]}${typingDots}`
+                  : researcher.status === 'waiting'
+                  ? '🔀 等待CEO决策 - 点击查看'
                   : researcher.status === 'completed'
                   ? '✅ 研究完成 - 点击查看'
                   : '💤 空闲 - 点击分配任务'
                 }
               </p>
-              {researcher.status === 'researching' && (
+              {(researcher.status === 'researching' || researcher.status === 'waiting') && (
                 <div className="mt-1 w-full h-[5px] bg-[oklch(0.18_0.02_260)] border border-[oklch(0.3_0.03_260)]">
                   <div
                     className="h-full transition-all duration-300"
@@ -235,7 +250,7 @@ export function OfficeScene() {
         {/* Mini stats */}
         <div className="absolute bottom-3 left-4 flex gap-2 z-10">
           {[
-            { label: '因子', value: state.factors.length, color: 'oklch(0.55 0.2 265)', bg: 'oklch(0.55 0.2 265 / 0.08)' },
+            { label: '因子', value: state.factorCards.length, color: 'oklch(0.55 0.2 265)', bg: 'oklch(0.55 0.2 265 / 0.08)' },
             { label: '报告', value: state.reports.length, color: 'oklch(0.82 0.15 85)', bg: 'oklch(0.82 0.15 85 / 0.08)' },
             { label: '策略', value: state.strategies.length, color: 'oklch(0.72 0.19 155)', bg: 'oklch(0.72 0.19 155 / 0.08)' },
           ].map(stat => (

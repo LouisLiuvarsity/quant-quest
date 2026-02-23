@@ -1,0 +1,28 @@
+Research report is excellent! Shows:
+
+Title: 因子研究报告: 动量反转因子_19
+Metadata: 2026/02/23 14:42:33, 张明远, 75,000 tokens consumed
+
+Summary section:
+"本次研究通过 17 步完整工作流，对因子「动量反转因子_19」进行了系统性评估。因子在验证集上的中位 Sharpe 为 1.28，胜率 47%，未通过验证阈值。"
+
+Key Metrics section:
+- 因子类型: momentum, 预测窗口 5 期
+- 最优参数: zscore_window=40, ewma_span=20, tanh_c=2
+- RankIC: 0.0585, ICIR: 0.40, IC胜率: 64%
+- 参数稳定性: 🟡 固定1%成本后Sharpe: 0.86
+- 最佳适用分组: 市值Top30 & 高流动性
+
+Suggestions section:
+- 因子未通过验证阈值，建议调整因子逻辑或参数
+- 可尝试不同的信号构造方式
+- 检查因子在不同市场环境下的表现差异
+
+Workflow steps list (S0-S16) showing all 17 steps with colored badges:
+- Green for completed steps
+- Red for failed/not-passed steps
+- Yellow for decision points
+
+Button: 查看因子档案卡详情 →
+
+This is a comprehensive report! Let me scroll down to see if there are charts.

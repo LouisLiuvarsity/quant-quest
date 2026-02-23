@@ -1,0 +1,14 @@
+Researcher detail panel for 张明远 shows:
+- Avatar with pixel art character
+- Tags: 因子研究 (blue), 等待决策 (yellow)
+- Description: 皮肤: 统一 Agent, 能力无差异
+- Stats: 完成任务 0, Token消耗 0
+- Active task: 因子挖掘 with factor description
+- Status: 🔀 等待CEO决策, Step 5/17
+- Progress bar showing ~28% (step 5 of 17)
+- Token consumed: 20,000 / 24K estimated
+- Button: 查看任务详情 →
+
+The task auto-advanced through the first 4 non-interactive steps and stopped at Step 5 (which is a 🔀 decision point). This matches the workflow!
+
+Let me click 查看任务详情 to see the decision point UI.

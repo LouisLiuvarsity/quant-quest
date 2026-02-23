@@ -1,0 +1,21 @@
+All panels tested and working correctly after major refactoring:
+
+1. Research Panel: Project config → researcher selection → factor description → start task → step-by-step progression with CEO decision points → completion → report generation. Full single-factor workflow (17 steps) works.
+
+2. Report Viewer: Shows summary, key metrics, suggestions, and complete workflow step list with color-coded badges.
+
+3. Factor Library: Shows discovered factors with filtering (by type) and sorting (Sharpe, IC, annual return). Factor cards display IC, Sharpe, annual return, max drawdown.
+
+4. Report Library: Shows all research reports with filtering by type. Displays summary, researcher, token cost.
+
+5. Strategy Panel: Shows portfolio cards section (empty until multi-factor synthesis) and strategy workshop (guides to research first).
+
+6. Live Trading: Shows free mode (3 strategies max), total P&L in USDT, upgrade to PRO button.
+
+7. Leaderboard: HALL OF FAME with 7 simulated competitors + player's fund at #8. Shows CEO name, researcher count, strategy count, P&L.
+
+8. Hiring Panel: Works for adding new researchers.
+
+9. Researcher Detail: Shows role, current task status, token usage history.
+
+Token economy working: 10.00M → 9.93M after one factor mining task (75K tokens consumed).

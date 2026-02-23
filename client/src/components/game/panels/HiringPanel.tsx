@@ -1,20 +1,26 @@
 /*
  * HiringPanel - Hire new researchers
  * All researchers have the same abilities, only differ in skin
- * User picks a skin and assigns a role (factor/backtest/optimize)
+ * User picks a skin and assigns a role
  * Hiring costs a flat token fee
  */
 
-import { useGame, AVAILABLE_SKINS, ROLE_LABELS, ROLE_COLORS, type ResearcherRole } from '@/contexts/GameContext';
+import { useGame, AVAILABLE_SKINS } from '@/contexts/GameContext';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
 const HIRE_COST = 200_000;
 
+const ROLE_OPTIONS = [
+  { value: '因子研究', color: 'oklch(0.55 0.2 265)', desc: '挖掘有效的Alpha因子' },
+  { value: '多因子合成', color: 'oklch(0.72 0.19 155)', desc: '将多个因子合成为组合策略' },
+  { value: '通用研究', color: 'oklch(0.82 0.15 85)', desc: '灵活分配各类研究任务' },
+];
+
 export function HiringPanel() {
   const { state, hireResearcher } = useGame();
   const [selectedSkin, setSelectedSkin] = useState<number | null>(null);
-  const [selectedRole, setSelectedRole] = useState<ResearcherRole>('factor');
+  const [selectedRole, setSelectedRole] = useState<string>('因子研究');
 
   const hiredNames = state.researchers.map(r => r.skin.name);
   const availableSkins = AVAILABLE_SKINS.map((skin, i) => ({
@@ -39,6 +45,10 @@ export function HiringPanel() {
     toast.success('招聘成功！');
   };
 
+  const getRoleColor = (role: string) => {
+    return ROLE_OPTIONS.find(r => r.value === role)?.color || 'oklch(0.5 0.02 260)';
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* Team status */}
@@ -54,8 +64,8 @@ export function HiringPanel() {
             <div
               key={r.id}
               className="w-8 h-8 flex items-center justify-center text-sm border-2"
-              style={{ borderColor: ROLE_COLORS[r.role], backgroundColor: `${ROLE_COLORS[r.role]}10` }}
-              title={`${r.skin.name} - ${ROLE_LABELS[r.role]}`}
+              style={{ borderColor: getRoleColor(r.role), backgroundColor: `${getRoleColor(r.role)}10` }}
+              title={`${r.skin.name} - ${r.role}`}
             >
               {r.skin.avatar}
             </div>
@@ -120,31 +130,29 @@ export function HiringPanel() {
         <div className="animate-fade-in-up">
           <p className="font-pixel text-[8px] text-[oklch(0.82_0.15_85)] mb-3">分配分工</p>
           <div className="space-y-2">
-            {(Object.keys(ROLE_LABELS) as ResearcherRole[]).map(role => (
+            {ROLE_OPTIONS.map(opt => (
               <button
-                key={role}
-                onClick={() => setSelectedRole(role)}
+                key={opt.value}
+                onClick={() => setSelectedRole(opt.value)}
                 className={`w-full p-3 border-2 text-left transition-all flex items-center justify-between ${
-                  selectedRole === role
+                  selectedRole === opt.value
                     ? 'bg-[oklch(0.18_0.03_260)]'
                     : 'bg-[oklch(0.14_0.02_260)] hover:bg-[oklch(0.16_0.025_260)]'
                 }`}
                 style={{
-                  borderColor: selectedRole === role ? ROLE_COLORS[role] : 'oklch(0.25 0.03 260)',
+                  borderColor: selectedRole === opt.value ? opt.color : 'oklch(0.25 0.03 260)',
                 }}
               >
                 <div>
-                  <p className="font-display text-sm font-semibold" style={{ color: ROLE_COLORS[role] }}>
-                    {ROLE_LABELS[role]}
+                  <p className="font-display text-sm font-semibold" style={{ color: opt.color }}>
+                    {opt.value}
                   </p>
                   <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] mt-0.5">
-                    {role === 'factor' && '挖掘有效的Alpha因子'}
-                    {role === 'backtest' && '对策略进行历史回测验证'}
-                    {role === 'optimize' && '组合优化或参数优化'}
+                    {opt.desc}
                   </p>
                 </div>
-                {selectedRole === role && (
-                  <span className="font-pixel text-[7px]" style={{ color: ROLE_COLORS[role] }}>✓</span>
+                {selectedRole === opt.value && (
+                  <span className="font-pixel text-[7px]" style={{ color: opt.color }}>✓</span>
                 )}
               </button>
             ))}

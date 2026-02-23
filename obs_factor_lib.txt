@@ -1,0 +1,12 @@
+Factor Library panel shows:
+
+Stats row: 1 factor total, avg IC 0.058, avg Sharpe 1.28
+Filter buttons: 全部, momentum
+Sort buttons: Sharpe ↓, IC ↓, 年化 ↓
+
+Factor card for 动量反转因子_19:
+- Description truncated
+- Status: ❌ 未通过 (red badge)
+- Metrics: IC 0.058, Sharpe 1.28, 年化 19.2%, 回撤 -24.4%
+
+Everything is working correctly. The factor was generated with simulated data and properly stored in the factor library.
