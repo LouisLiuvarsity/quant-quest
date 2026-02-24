@@ -237,22 +237,22 @@ export function OfficeScene() {
 
         {/* Office label */}
         <div className="absolute top-3 right-4 z-10">
-          <div className="bg-[oklch(0.08_0.015_260_/_0.88)] border-2 border-[oklch(0.28_0.03_260)] px-3 py-1.5 backdrop-blur-sm">
-            <p className="font-pixel text-[7px] text-[oklch(0.65_0.02_260)]">
+          <div className="rounded-xl bg-[oklch(0.08_0.015_260_/_0.86)] border border-[oklch(0.28_0.03_260)] px-3 py-2 backdrop-blur-sm">
+            <p className="font-display text-xs font-semibold text-[oklch(0.86_0.01_260)]">
               🏢 {state.companyName}
             </p>
-            <p className="font-pixel text-[5px] text-[oklch(0.4_0.02_260)] mt-0.5">
+            <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] mt-0.5">
               研究员: {state.researchers.length}/6
             </p>
           </div>
         </div>
 
         {/* Quick hint + legend */}
-        <div className="absolute top-28 left-4 z-10 hidden md:block">
-          <div className="bg-[oklch(0.08_0.015_260_/_0.86)] border-2 border-[oklch(0.28_0.03_260)] px-3 py-2 backdrop-blur-sm max-w-[280px]">
-            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">🕹️ 办公室交互提示</p>
+        <div className="absolute top-3 left-4 z-10 hidden md:block">
+          <div className="rounded-xl bg-[oklch(0.08_0.015_260_/_0.86)] border border-[oklch(0.28_0.03_260)] px-3 py-2 backdrop-blur-sm max-w-[270px]">
+            <p className="font-display text-[11px] font-semibold text-[oklch(0.82_0.15_85)]">🕹️ 交互提示</p>
             <p className="font-display text-[10px] text-[oklch(0.58_0.02_260)] mt-1 leading-relaxed">
-              点击研究员查看任务详情；点击空工位可快速招聘；出现 🔀 状态时前往研究面板处理 CEO 决策。
+              点击研究员看任务，点击空工位招聘。出现 🔀 状态时到研究面板处理决策。
             </p>
             <div className="flex gap-2 mt-2">
               {[
@@ -263,7 +263,7 @@ export function OfficeScene() {
               ].map(item => (
                 <span
                   key={item.label}
-                  className="font-pixel text-[6px] px-1.5 py-1 border"
+                  className="font-display text-[10px] px-1.5 py-1 rounded border"
                   style={{ color: item.color, borderColor: `${item.color}80`, backgroundColor: `${item.color}10` }}
                 >
                   {item.icon} {item.label}
@@ -282,11 +282,11 @@ export function OfficeScene() {
           ].map(stat => (
             <div
               key={stat.label}
-              className="border-2 px-2.5 py-1.5 backdrop-blur-sm"
+              className="rounded-xl border px-3 py-2 backdrop-blur-sm min-w-[66px]"
               style={{ borderColor: stat.color, backgroundColor: stat.bg }}
             >
-              <p className="font-pixel text-[5px]" style={{ color: stat.color }}>{stat.label}</p>
-              <p className="font-mono-data text-sm font-bold text-[oklch(0.92_0.01_260)]">{stat.value}</p>
+              <p className="font-display text-[10px]" style={{ color: stat.color }}>{stat.label}</p>
+              <p className="font-mono-data text-base font-bold text-[oklch(0.92_0.01_260)] leading-none mt-1">{stat.value}</p>
             </div>
           ))}
         </div>
