@@ -347,12 +347,15 @@ export interface GameNotification {
   read: boolean;
 }
 
+export type PlayMode = 'guided' | 'expert';
+
 export interface GameState {
   companyName: string;
   ceoName: string;
   credits: number;
   totalCredits: number;
   plan: PlanType;
+  playMode: PlayMode;
   projectConfig: ProjectConfig | null; // null until Step 0 is done
   researchers: Researcher[];
   factorCards: FactorCard[];
@@ -697,6 +700,7 @@ const INITIAL_STATE: GameState = {
   credits: 10_000_000,
   totalCredits: 10_000_000,
   plan: 'free',
+  playMode: 'guided',
   projectConfig: null,
   researchers: INITIAL_RESEARCHERS,
   factorCards: [],
@@ -1087,6 +1091,7 @@ interface GameContextType {
   hireResearcher: (skinIndex: number, role: string) => void;
   changeRole: (researcherId: string, role: string) => void;
   setProjectConfig: (config: ProjectConfig) => void;
+  setPlayMode: (mode: PlayMode) => void;
   startSingleFactorTask: (researcherId: string, config: SingleFactorConfig) => void;
   startMultiFactorTask: (researcherId: string, config: MultiFactorConfig) => void;
   resumeTask: (taskId: string, decision?: ResumeDecisionInput) => void;
@@ -1174,6 +1179,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, projectConfig: config }));
     addNotification('success', '项目配置完成', `K线: ${config.barSize}, 资产池: ${config.universeFilter}`);
   }, [addNotification]);
+
+  const setPlayMode = useCallback((mode: PlayMode) => {
+    setState(prev => ({ ...prev, playMode: mode }));
+  }, []);
 
   // --- Step-by-step task simulation ---
   const advanceTaskStep = useCallback((taskId: string, researcherId: string, taskType: TaskType) => {
@@ -1272,13 +1281,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startSingleFactorTask = useCallback((researcherId: string, config: SingleFactorConfig) => {
+    if (!state.projectConfig) {
+      addNotification('warning', '请先完成项目配置', '无论新手或专业模式，发起研究前都必须先完成项目配置。');
+      return;
+    }
+
     const taskId = `task-${Date.now()}`;
     const steps = SINGLE_FACTOR_STEPS;
 
-    // Step 0 is interactive (project config), but if config exists, skip to step 1
-    const hasConfig = state.projectConfig !== null;
-    const startStep = hasConfig ? 1 : 0;
-    const isFirstStepInteractive = steps[startStep].isInteractive;
+    // S0 is global project config and is always completed first.
+    const startStep = 1;
+    const isFirstStepInteractive = steps[startStep]?.isInteractive ?? false;
     const initialLogs = generateStepLogs(steps, startStep);
     const initialOverallProgress = Math.round((startStep / steps.length) * 100);
 
@@ -1306,6 +1319,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const researcher = prev.researchers.find(r => r.id === researcherId);
       if (!researcher || researcher.status !== 'idle') return prev;
       if (prev.credits < TOKEN_COSTS.single_factor.base) return prev;
+      if (!prev.projectConfig) return prev;
 
       return {
         ...prev,
@@ -1325,6 +1339,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [state.projectConfig, advanceTaskStep, addNotification]);
 
   const startMultiFactorTask = useCallback((researcherId: string, config: MultiFactorConfig) => {
+    if (!state.projectConfig) {
+      addNotification('warning', '请先完成项目配置', '无论新手或专业模式，发起研究前都必须先完成项目配置。');
+      return;
+    }
+
     const taskId = `task-${Date.now()}`;
     const steps = MULTI_FACTOR_STEPS;
     const initialLogs = generateStepLogs(steps, 0);
@@ -1353,6 +1372,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const researcher = prev.researchers.find(r => r.id === researcherId);
       if (!researcher || researcher.status !== 'idle') return prev;
       if (prev.credits < TOKEN_COSTS.multi_factor.base) return prev;
+      if (!prev.projectConfig) return prev;
 
       return {
         ...prev,
@@ -1367,7 +1387,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     taskTimersRef.current.set(`${taskId}-start`, timer);
 
     addNotification('info', '多因子合成启动', `开始 ${steps.length} 步多因子合成工作流`);
-  }, [advanceTaskStep, addNotification]);
+  }, [state.projectConfig, advanceTaskStep, addNotification]);
 
   const resumeTask = useCallback((taskId: string, decision?: ResumeDecisionInput) => {
     setState(prev => {
@@ -1510,6 +1530,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       hireResearcher,
       changeRole,
       setProjectConfig,
+      setPlayMode,
       startSingleFactorTask,
       startMultiFactorTask,
       resumeTask,

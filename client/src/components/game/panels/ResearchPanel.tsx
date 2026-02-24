@@ -21,6 +21,20 @@ function ProjectConfigSetup({ onSave }: { onSave: (config: ProjectConfig) => voi
         <p className="font-display text-[11px] text-[oklch(0.6_0.02_260)] leading-relaxed">
           首次研究需要设定项目配置。此配置将被所有后续因子研究继承。
         </p>
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          <div className="border border-[oklch(0.32_0.03_260)] bg-[oklch(0.14_0.02_260)] p-1.5">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">作用 1</p>
+            <p className="font-display text-[9px] text-[oklch(0.75_0.01_260)] mt-0.5">统一回测口径</p>
+          </div>
+          <div className="border border-[oklch(0.32_0.03_260)] bg-[oklch(0.14_0.02_260)] p-1.5">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">作用 2</p>
+            <p className="font-display text-[9px] text-[oklch(0.75_0.01_260)] mt-0.5">固定训练/验证分层</p>
+          </div>
+          <div className="border border-[oklch(0.32_0.03_260)] bg-[oklch(0.14_0.02_260)] p-1.5">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">作用 3</p>
+            <p className="font-display text-[9px] text-[oklch(0.75_0.01_260)] mt-0.5">解锁任务指派</p>
+          </div>
+        </div>
       </div>
 
       {/* K-line Period */}
@@ -611,23 +625,73 @@ function TaskMonitor({ task }: { task: ResearchTask }) {
 
 // --- Main Research Panel ---
 export function ResearchPanel() {
-  const { state, setProjectConfig } = useGame();
+  const { state, setProjectConfig, setPlayMode } = useGame();
   const [view, setView] = useState<'main' | 'config' | 'single_factor' | 'multi_factor'>('main');
   const [selectedResearcherId, setSelectedResearcherId] = useState<string>('');
 
   const idleResearchers = state.researchers.filter(r => r.status === 'idle');
+  const leadIdleResearcher = idleResearchers[0];
   const activeTasks = state.activeTasks.filter(t => t.status !== 'completed');
   const completedTasks = state.activeTasks.filter(t => t.status === 'completed').slice(0, 5);
   const waitingTasks = state.activeTasks.filter(t => t.status === 'paused').length;
   const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
   const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
+  const isGuidedMode = state.playMode === 'guided';
+  const canStartMulti = passedFactors >= 2;
+
   const stageHint = !state.projectConfig
     ? '先完成项目配置，再启动第一条单因子研究链路。'
-    : passedFactors < 2
-      ? '当前目标：继续挖掘并通过至少 2 个因子，然后进入多因子合成。'
-      : adoptedPortfolios === 0
-        ? '当前目标：发起多因子合成，产出可部署组合。'
-        : '当前目标：扩充组合池并持续优化研究画像。';
+    : isGuidedMode
+      ? passedFactors < 2
+        ? '新手模式：先用单因子任务凑齐 2 个通过因子，再进入多因子。'
+        : adoptedPortfolios === 0
+          ? '新手模式：用已通过因子发起一次多因子合成，拿到首个可部署组合。'
+          : '新手模式：你已跑通完整链路，可切到专业模式进行批量派单。'
+      : passedFactors < 2
+        ? '专业模式：直接给研究员派单，优先快速扩展通过因子数量。'
+        : adoptedPortfolios === 0
+          ? '专业模式：立即推进多因子合成，验证组合相对单因子提升。'
+          : '专业模式：并行运行研究任务，持续优化组合与策略池。';
+
+  const guidedChecklist = [
+    {
+      id: 'project',
+      title: '完成项目配置',
+      detail: '统一 K 线级别、资产池和切分方式，建立全局研究基线',
+      done: Boolean(state.projectConfig),
+      progressText: state.projectConfig ? '已完成' : '未完成',
+    },
+    {
+      id: 'single',
+      title: '产出 2 个通过因子',
+      detail: '优先使用单因子任务积累候选，学习研究闭环',
+      done: passedFactors >= 2,
+      progressText: `${Math.min(passedFactors, 2)}/2`,
+    },
+    {
+      id: 'multi',
+      title: '产出 1 个可部署组合',
+      detail: '把通过因子合成为组合，并观察是否优于最优单因子',
+      done: adoptedPortfolios >= 1,
+      progressText: `${Math.min(adoptedPortfolios, 1)}/1`,
+    },
+  ] as const;
+
+  const nextGuidedStep = guidedChecklist.find(step => !step.done) ?? null;
+  const guidedRecommendedTask = nextGuidedStep?.id === 'single' || nextGuidedStep?.id === 'multi'
+    ? (nextGuidedStep.id === 'single' ? 'single_factor' : 'multi_factor')
+    : null;
+
+  const handleGuidedAction = () => {
+    if (!nextGuidedStep) return;
+    if (nextGuidedStep.id === 'project') {
+      setView('config');
+      return;
+    }
+    if (!leadIdleResearcher) return;
+    setSelectedResearcherId(leadIdleResearcher.id);
+    setView(nextGuidedStep.id === 'single' ? 'single_factor' : 'multi_factor');
+  };
 
   if (!state.projectConfig && view === 'main') {
     return <ProjectConfigSetup onSave={setProjectConfig} />;
@@ -661,6 +725,34 @@ export function ResearchPanel() {
             <p className={`font-mono-data text-sm font-bold ${waitingTasks > 0 ? 'text-[oklch(0.82_0.15_85)]' : 'text-[oklch(0.72_0.19_155)]'}`}>{waitingTasks}</p>
           </div>
         </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setPlayMode('guided')}
+            className={`text-left border-2 px-2.5 py-2 transition-all ${
+              isGuidedMode
+                ? 'border-[oklch(0.82_0.15_85)] bg-[oklch(0.82_0.15_85_/_0.12)]'
+                : 'border-[oklch(0.3_0.03_260)] bg-[oklch(0.14_0.02_260)] hover:border-[oklch(0.45_0.04_260)]'
+            }`}
+          >
+            <p className={`font-pixel text-[7px] ${isGuidedMode ? 'text-[oklch(0.82_0.15_85)]' : 'text-[oklch(0.55_0.02_260)]'}`}>🎓 新手引导模式</p>
+            <p className="font-display text-[10px] text-[oklch(0.62_0.02_260)] mt-1 leading-relaxed">
+              给你下一步建议，按里程碑边做边学。
+            </p>
+          </button>
+          <button
+            onClick={() => setPlayMode('expert')}
+            className={`text-left border-2 px-2.5 py-2 transition-all ${
+              !isGuidedMode
+                ? 'border-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.12)]'
+                : 'border-[oklch(0.3_0.03_260)] bg-[oklch(0.14_0.02_260)] hover:border-[oklch(0.45_0.04_260)]'
+            }`}
+          >
+            <p className={`font-pixel text-[7px] ${!isGuidedMode ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.55_0.02_260)]'}`}>🧠 专业直达模式</p>
+            <p className="font-display text-[10px] text-[oklch(0.62_0.02_260)] mt-1 leading-relaxed">
+              直接指派研究员任务，快速推进并行流水线。
+            </p>
+          </button>
+        </div>
         <div className="grid grid-cols-3 gap-2 mt-3">
           <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.22_0.025_260)] p-2 text-center">
             <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">通过因子</p>
@@ -686,6 +778,59 @@ export function ResearchPanel() {
           ))}
         </div>
       </div>
+
+      {isGuidedMode ? (
+        <div className="border-2 border-[oklch(0.82_0.15_85_/_0.4)] bg-[oklch(0.82_0.15_85_/_0.06)] p-3 space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">🎯 新手下一步</p>
+              <p className="font-display text-[11px] text-[oklch(0.78_0.02_260)] mt-1">
+                {nextGuidedStep ? nextGuidedStep.title : '基础教学链路已完成'}
+              </p>
+              <p className="font-display text-[10px] text-[oklch(0.58_0.02_260)] mt-1 leading-relaxed">
+                {nextGuidedStep ? nextGuidedStep.detail : '你已跑通配置 → 单因子 → 多因子，可切换专业模式按策略目标直接派单。'}
+              </p>
+            </div>
+            <button
+              onClick={handleGuidedAction}
+              disabled={!nextGuidedStep || ((nextGuidedStep.id === 'single' || nextGuidedStep.id === 'multi') && !leadIdleResearcher)}
+              className={`shrink-0 font-pixel text-[7px] px-2.5 py-2 border-2 transition-all ${
+                nextGuidedStep && (nextGuidedStep.id === 'project' || leadIdleResearcher)
+                  ? 'bg-[oklch(0.82_0.15_85)] text-[oklch(0.12_0.02_260)] border-[oklch(0.88_0.16_85)] hover:brightness-110'
+                  : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)] cursor-not-allowed'
+              }`}
+            >
+              {nextGuidedStep
+                ? nextGuidedStep.id === 'project'
+                  ? '去配置'
+                  : leadIdleResearcher
+                    ? `派给 ${leadIdleResearcher.skin.name}`
+                    : '暂无空闲研究员'
+                : '已完成'}
+            </button>
+          </div>
+          <div className="space-y-1.5">
+            {guidedChecklist.map(step => (
+              <div key={step.id} className="flex items-center justify-between gap-2 border border-[oklch(0.28_0.03_260)] bg-[oklch(0.12_0.02_260)] px-2.5 py-2">
+                <div>
+                  <p className={`font-display text-[11px] ${step.done ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.82_0.02_260)]'}`}>
+                    {step.done ? '✅' : '▫️'} {step.title}
+                  </p>
+                  <p className="font-display text-[9px] text-[oklch(0.52_0.02_260)] mt-0.5">{step.detail}</p>
+                </div>
+                <span className="font-mono-data text-[10px] text-[oklch(0.82_0.15_85)]">{step.progressText}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="border-2 border-[oklch(0.72_0.19_155_/_0.35)] bg-[oklch(0.72_0.19_155_/_0.06)] p-3">
+          <p className="font-pixel text-[7px] text-[oklch(0.72_0.19_155)]">⚡ 专业模式提示</p>
+          <p className="font-display text-[10px] text-[oklch(0.62_0.02_260)] mt-1 leading-relaxed">
+            你可以直接给空闲研究员分配单因子或多因子任务；系统仍会强制要求先完成项目配置，避免口径不一致。
+          </p>
+        </div>
+      )}
 
       {/* Project Config Summary */}
       {state.projectConfig && (
@@ -726,36 +871,59 @@ export function ResearchPanel() {
           </div>
         ) : (
           <div className="space-y-2">
-            {idleResearchers.map(r => (
-              <div key={r.id} className="border-2 border-[oklch(0.22_0.025_260)] bg-[oklch(0.12_0.02_260)] p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{r.skin.avatar}</span>
-                  <div>
-                    <p className="font-display text-xs text-[oklch(0.85_0.01_260)]">{r.skin.name}</p>
-                    <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">{r.role} | 💤 空闲</p>
+            {idleResearchers.map(r => {
+              const isRecommendedOwner = isGuidedMode && Boolean(guidedRecommendedTask) && r.id === leadIdleResearcher?.id;
+              return (
+                <div
+                  key={r.id}
+                  className={`border-2 p-3 ${
+                    isRecommendedOwner
+                      ? 'border-[oklch(0.82_0.15_85_/_0.5)] bg-[oklch(0.82_0.15_85_/_0.06)]'
+                      : 'border-[oklch(0.22_0.025_260)] bg-[oklch(0.12_0.02_260)]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{r.skin.avatar}</span>
+                      <div>
+                        <p className="font-display text-xs text-[oklch(0.85_0.01_260)]">{r.skin.name}</p>
+                        <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">{r.role} | 💤 空闲</p>
+                      </div>
+                    </div>
+                    {isRecommendedOwner && (
+                      <span className="font-pixel text-[6px] px-1.5 py-1 border border-[oklch(0.82_0.15_85_/_0.5)] bg-[oklch(0.82_0.15_85_/_0.15)] text-[oklch(0.82_0.15_85)]">
+                        引导推荐
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setSelectedResearcherId(r.id); setView('single_factor'); }}
+                      className={`flex-1 font-pixel text-[7px] py-2 border-2 transition-all ${
+                        isRecommendedOwner && guidedRecommendedTask === 'single_factor'
+                          ? 'bg-[oklch(0.82_0.15_85_/_0.2)] text-[oklch(0.9_0.08_85)] border-[oklch(0.82_0.15_85)]'
+                          : 'bg-[oklch(0.55_0.2_265_/_0.15)] text-[oklch(0.55_0.2_265)] border-[oklch(0.55_0.2_265_/_0.3)] hover:bg-[oklch(0.55_0.2_265_/_0.25)]'
+                      }`}
+                    >
+                      🔬 因子挖掘
+                    </button>
+                    <button
+                      onClick={() => { setSelectedResearcherId(r.id); setView('multi_factor'); }}
+                      className={`flex-1 font-pixel text-[7px] py-2 border-2 transition-all ${
+                        canStartMulti
+                          ? isRecommendedOwner && guidedRecommendedTask === 'multi_factor'
+                            ? 'bg-[oklch(0.82_0.15_85_/_0.2)] text-[oklch(0.9_0.08_85)] border-[oklch(0.82_0.15_85)]'
+                            : 'bg-[oklch(0.72_0.19_155_/_0.15)] text-[oklch(0.72_0.19_155)] border-[oklch(0.72_0.19_155_/_0.3)] hover:bg-[oklch(0.72_0.19_155_/_0.25)]'
+                          : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.3_0.02_260)] border-[oklch(0.2_0.02_260)] cursor-not-allowed'
+                      }`}
+                      disabled={!canStartMulti}
+                    >
+                      🧬 多因子合成
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setSelectedResearcherId(r.id); setView('single_factor'); }}
-                    className="flex-1 font-pixel text-[7px] py-2 bg-[oklch(0.55_0.2_265_/_0.15)] text-[oklch(0.55_0.2_265)] border-2 border-[oklch(0.55_0.2_265_/_0.3)] hover:bg-[oklch(0.55_0.2_265_/_0.25)] transition-all"
-                  >
-                    🔬 因子挖掘
-                  </button>
-                  <button
-                    onClick={() => { setSelectedResearcherId(r.id); setView('multi_factor'); }}
-                    className={`flex-1 font-pixel text-[7px] py-2 border-2 transition-all ${
-                      state.factorCards.filter(f => f.status === 'passed').length >= 2
-                        ? 'bg-[oklch(0.72_0.19_155_/_0.15)] text-[oklch(0.72_0.19_155)] border-[oklch(0.72_0.19_155_/_0.3)] hover:bg-[oklch(0.72_0.19_155_/_0.25)]'
-                        : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.3_0.02_260)] border-[oklch(0.2_0.02_260)] cursor-not-allowed'
-                    }`}
-                    disabled={state.factorCards.filter(f => f.status === 'passed').length < 2}
-                  >
-                    🧬 多因子合成
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
