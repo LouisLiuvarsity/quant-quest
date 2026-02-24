@@ -335,6 +335,12 @@ export function ReportViewerPanel() {
             </div>
           </div>
         )}
+        <button
+          onClick={() => setActivePanel('audit-replay')}
+          className="w-full font-pixel text-[8px] py-3 bg-[oklch(0.82_0.15_85_/_0.1)] text-[oklch(0.82_0.15_85)] border-2 border-[oklch(0.82_0.15_85_/_0.3)] hover:bg-[oklch(0.82_0.15_85_/_0.2)] transition-all"
+        >
+          🧾 打开审计回放 →
+        </button>
         {linkedFC && (
           <button onClick={() => { setSelectedFactorCard(linkedFC); setActivePanel('report-viewer'); }}
             className="w-full font-pixel text-[8px] py-3 bg-[oklch(0.55_0.2_265_/_0.1)] text-[oklch(0.55_0.2_265)] border-2 border-[oklch(0.55_0.2_265_/_0.3)] hover:bg-[oklch(0.55_0.2_265_/_0.2)] transition-all">

@@ -17,6 +17,7 @@ import { FactorLibraryPanel } from './panels/FactorLibraryPanel';
 import { ReportLibraryPanel } from './panels/ReportLibraryPanel';
 import { ReportViewerPanel } from './panels/ReportViewerPanel';
 import { LearningPanel } from './panels/LearningPanel';
+import { AuditReplayPanel } from './panels/AuditReplayPanel';
 
 const PANEL_CONFIG: Record<string, { title: string; color: string }> = {
   'hiring': { title: '👥 招聘中心', color: 'oklch(0.55 0.2 265)' },
@@ -25,6 +26,7 @@ const PANEL_CONFIG: Record<string, { title: string; color: string }> = {
   'factor-library': { title: '🗄️ 因子库', color: 'oklch(0.55 0.2 265)' },
   'report-library': { title: '📋 研究报告库', color: 'oklch(0.82 0.15 85)' },
   'report-viewer': { title: '📄 研究报告', color: 'oklch(0.82 0.15 85)' },
+  'audit-replay': { title: '🧾 审计回放', color: 'oklch(0.82 0.15 85)' },
   'learning-cards': { title: '📚 学习卡库', color: 'oklch(0.75 0.12 200)' },
   'live': { title: '🚀 实盘交易', color: 'oklch(0.63 0.22 25)' },
   'leaderboard': { title: '🏆 排行榜', color: 'oklch(0.82 0.15 85)' },
@@ -40,6 +42,7 @@ function PanelContent({ panelId }: { panelId: string }) {
     case 'factor-library': return <FactorLibraryPanel />;
     case 'report-library': return <ReportLibraryPanel />;
     case 'report-viewer': return <ReportViewerPanel />;
+    case 'audit-replay': return <AuditReplayPanel />;
     case 'learning-cards': return <LearningPanel />;
     case 'live': return <LiveTradingPanel />;
     case 'leaderboard': return <LeaderboardPanel />;

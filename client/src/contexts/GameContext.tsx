@@ -20,8 +20,8 @@ import {
   type QuarterTargetMix,
   type Thesis,
   type ThesisGoal,
-  type ThesisStatus,
   type ThesisType,
+  type ThesisStatus,
   type PlayMode,
   type PortfolioCard,
   type ProjectConfig,
@@ -148,6 +148,30 @@ const buildActiveEvent = (template: typeof GAME_EVENT_LIBRARY[number], dayInQuar
   startDay: dayInQuarter,
   remainingDays: template.durationDays,
 });
+
+const normalizeSegments = (text: string): string[] => (
+  text
+    .toLowerCase()
+    .split(/[，。；、,\.\s\n\t]+/)
+    .map(item => item.trim())
+    .filter(item => item.length >= 3)
+);
+
+const findFailurePatternHint = (
+  hypothesis: string,
+  type: ThesisType,
+  cards: LearningCard[],
+): LearningCard | null => {
+  const currentSegments = normalizeSegments(hypothesis);
+  if (currentSegments.length === 0) return null;
+  const failedCards = cards.filter(card => card.thesisType === type && ['failed', 'rejected'].includes(card.outcome));
+  for (const card of failedCards) {
+    const historicalSegments = normalizeSegments(card.hypothesis);
+    const shared = currentSegments.find(seg => historicalSegments.some(item => item.includes(seg) || seg.includes(item)));
+    if (shared) return card;
+  }
+  return null;
+};
 
 const buildLearningCard = (
   thesis: Thesis,
@@ -562,24 +586,36 @@ export function GameProvider({ children }: { children: ReactNode }) {
       addNotification('warning', '命题描述为空', '请先写出一句可检验的研究假设。');
       return;
     }
+    const patternHint = findFailurePatternHint(hypothesis, input.type, state.learningCards);
     const timestamp = nowCN();
-    const thesis: Thesis = {
-      id: `th-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      type: input.type,
-      title: buildThesisTitle(input.type, hypothesis),
-      hypothesis,
-      goal: input.goal,
-      status: 'draft',
-      experimentPacks: [],
-      plannedBudget: 0,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      selectedFactorIds: input.type === 'portfolio' ? input.selectedFactorIds : undefined,
-      evidenceNodes: [],
-    };
-    setState(prev => ({ ...prev, theses: [thesis, ...prev.theses] }));
-    addNotification('success', '命题已创建', `${thesis.title} 已进入草稿池。`);
-  }, [addNotification]);
+    const thesisId = `th-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const thesisTitle = buildThesisTitle(input.type, hypothesis);
+    setState(prev => {
+      const thesis: Thesis = {
+        id: thesisId,
+        type: input.type,
+        title: thesisTitle,
+        hypothesis,
+        goal: input.goal,
+        status: 'draft',
+        experimentPacks: [],
+        plannedBudget: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        selectedFactorIds: input.type === 'portfolio' ? input.selectedFactorIds : undefined,
+        evidenceNodes: [],
+      };
+      return { ...prev, theses: [thesis, ...prev.theses] };
+    });
+    addNotification('success', '命题已创建', `${thesisTitle} 已进入草稿池。`);
+    if (patternHint) {
+      addNotification(
+        'warning',
+        '检测到历史失败模式',
+        `当前命题与历史失败卡「${patternHint.thesisTitle}」相似，建议先复盘其失效原因并补充反例验证。`,
+      );
+    }
+  }, [addNotification, state.learningCards]);
 
   const planThesis = useCallback((thesisId: string, packs?: ExperimentPackType[]) => {
     const outcome: {

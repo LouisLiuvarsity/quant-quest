@@ -5,7 +5,7 @@
  */
 
 import { useGame } from '@/contexts/GameContext';
-import { Users, FlaskConical, Layers, Database, FileText, BookOpen, Rocket, Trophy } from 'lucide-react';
+import { Users, FlaskConical, Layers, Database, FileText, BookOpen, ShieldCheck, Rocket, Trophy } from 'lucide-react';
 
 const ACTIONS = [
   { id: 'hiring', label: '招聘', icon: Users, color: 'oklch(0.55 0.2 265)' },
@@ -13,6 +13,7 @@ const ACTIONS = [
   { id: 'strategy', label: '策略', icon: Layers, color: 'oklch(0.72 0.19 155)' },
   { id: 'factor-library', label: '因子库', icon: Database, color: 'oklch(0.55 0.2 265)' },
   { id: 'report-library', label: '报告', icon: FileText, color: 'oklch(0.82 0.15 85)' },
+  { id: 'audit-replay', label: '审计', icon: ShieldCheck, color: 'oklch(0.82 0.15 85)' },
   { id: 'learning-cards', label: '学习卡', icon: BookOpen, color: 'oklch(0.75 0.12 200)' },
   { id: 'live', label: '实盘', icon: Rocket, color: 'oklch(0.63 0.22 25)' },
   { id: 'leaderboard', label: '排行', icon: Trophy, color: 'oklch(0.82 0.15 85)' },
@@ -30,6 +31,7 @@ export function BottomToolbar() {
     if (panelId === 'research') return waitingTasks;
     if (panelId === 'strategy') return draftStrategies;
     if (panelId === 'report-library') return unreadReports;
+    if (panelId === 'audit-replay') return unreadReports;
     if (panelId === 'learning-cards') return pendingLearningCards;
     if (panelId === 'live') return liveStrategies;
     return 0;
