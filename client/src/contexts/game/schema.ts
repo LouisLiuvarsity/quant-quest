@@ -74,6 +74,7 @@ export interface Thesis {
   createdAt: string;
   updatedAt: string;
   selectedFactorIds?: string[];
+  sourceLearningCardId?: string;
   runId?: string;
   linkedTaskId?: string;
   linkedFactorCardId?: string;

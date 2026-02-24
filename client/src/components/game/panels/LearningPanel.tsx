@@ -1,10 +1,18 @@
 import { useGame } from '@/contexts/GameContext';
 
 export function LearningPanel() {
-  const { state, markLearningCardReviewed, setSelectedReport, setActivePanel } = useGame();
+  const { state, markLearningCardReviewed, setSelectedReport, setActivePanel, createThesis } = useGame();
   const cards = state.learningCards;
   const reviewedCount = cards.filter(card => card.reviewed).length;
   const pendingCount = cards.length - reviewedCount;
+
+  const buildRetryHypothesis = (hypothesis: string, outcome: string): string => {
+    const clean = hypothesis.replace(/（复盘迭代：补反例）$/, '').replace(/（复盘迭代）$/, '').trim();
+    const suffix = ['failed', 'rejected', 'hold', 'parked'].includes(outcome)
+      ? '（复盘迭代：补反例）'
+      : '（复盘迭代）';
+    return `${clean}${suffix}`;
+  };
 
   if (cards.length === 0) {
     return (
@@ -45,6 +53,10 @@ export function LearningPanel() {
           const linkedReport = thesis?.linkedTaskId
             ? state.reports.find(report => report.taskId === thesis.linkedTaskId)
             : null;
+          const hasRetryDraft = state.theses.some(item => (
+            item.sourceLearningCardId === card.id
+            && ['draft', 'planned', 'running', 'oos_locked', 'oos_running', 'needs_review'].includes(item.status)
+          ));
           const statusColor = card.outcome === 'passed' || card.outcome === 'adopted'
             ? 'text-[oklch(0.72_0.19_155)]'
             : card.outcome === 'hold' || card.outcome === 'parked'
@@ -107,6 +119,27 @@ export function LearningPanel() {
                   查看关联报告
                 </button>
               </div>
+              <button
+                onClick={() => {
+                  createThesis({
+                    type: card.thesisType,
+                    hypothesis: buildRetryHypothesis(card.hypothesis, card.outcome),
+                    goal: thesis?.goal ?? 'robustness',
+                    selectedFactorIds: card.thesisType === 'portfolio' ? thesis?.selectedFactorIds : undefined,
+                    sourceLearningCardId: card.id,
+                  });
+                  if (!card.reviewed) markLearningCardReviewed(card.id);
+                  setActivePanel('research');
+                }}
+                disabled={hasRetryDraft}
+                className={`w-full font-pixel text-[6px] py-1.5 border ${
+                  hasRetryDraft
+                    ? 'border-[oklch(0.22_0.025_260)] text-[oklch(0.35_0.02_260)] bg-[oklch(0.15_0.02_260)]'
+                    : 'border-[oklch(0.82_0.15_85_/_0.55)] text-[oklch(0.82_0.15_85)] bg-[oklch(0.82_0.15_85_/_0.08)] hover:bg-[oklch(0.82_0.15_85_/_0.15)]'
+                }`}
+              >
+                {hasRetryDraft ? '该学习卡已有重开命题' : '基于此卡重开命题'}
+              </button>
             </div>
           );
         })}

@@ -61,6 +61,7 @@ interface CreateThesisInput {
   hypothesis: string;
   goal: ThesisGoal;
   selectedFactorIds?: string[];
+  sourceLearningCardId?: string;
 }
 
 const DEFAULT_PACKS_BY_TYPE: Record<ThesisType, ExperimentPackType[]> = {
@@ -586,6 +587,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
       addNotification('warning', '命题描述为空', '请先写出一句可检验的研究假设。');
       return;
     }
+    const duplicated = state.theses.find(item => (
+      item.type === input.type
+      && item.hypothesis === hypothesis
+      && ['draft', 'planned', 'running', 'oos_locked', 'oos_running', 'needs_review'].includes(item.status)
+    ));
+    if (duplicated) {
+      addNotification('warning', '命题已在流程中', `${duplicated.title} 正在进行中，建议先继续该命题。`);
+      return;
+    }
     const patternHint = findFailurePatternHint(hypothesis, input.type, state.learningCards);
     const timestamp = nowCN();
     const thesisId = `th-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -603,25 +613,31 @@ export function GameProvider({ children }: { children: ReactNode }) {
         createdAt: timestamp,
         updatedAt: timestamp,
         selectedFactorIds: input.type === 'portfolio' ? input.selectedFactorIds : undefined,
+        sourceLearningCardId: input.sourceLearningCardId,
         evidenceNodes: [],
       };
       return { ...prev, theses: [thesis, ...prev.theses] };
     });
-    addNotification('success', '命题已创建', `${thesisTitle} 已进入草稿池。`);
-    if (patternHint) {
+    addNotification(
+      'success',
+      input.sourceLearningCardId ? '已从学习卡创建命题' : '命题已创建',
+      `${thesisTitle} 已进入草稿池。`,
+    );
+    if (patternHint && patternHint.id !== input.sourceLearningCardId) {
       addNotification(
         'warning',
         '检测到历史失败模式',
         `当前命题与历史失败卡「${patternHint.thesisTitle}」相似，建议先复盘其失效原因并补充反例验证。`,
       );
     }
-  }, [addNotification, state.learningCards]);
+  }, [addNotification, state.learningCards, state.theses]);
 
   const planThesis = useCallback((thesisId: string, packs?: ExperimentPackType[]) => {
     const outcome: {
       result: 'ok' | 'not_found' | 'invalid_status' | 'insufficient_budget';
       title: string;
-    } = { result: 'not_found', title: '' };
+      autoCounterExample: boolean;
+    } = { result: 'not_found', title: '', autoCounterExample: false };
     setState(prev => {
       const thesis = prev.theses.find(item => item.id === thesisId);
       if (!thesis) return prev;
@@ -630,8 +646,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
         outcome.result = 'invalid_status';
         return prev;
       }
-      const resolvedPacks = (packs && packs.length > 0 ? packs : DEFAULT_PACKS_BY_TYPE[thesis.type])
+      const sourceLearningCard = thesis.sourceLearningCardId
+        ? prev.learningCards.find(card => card.id === thesis.sourceLearningCardId)
+        : null;
+      const fromFailedPattern = Boolean(
+        sourceLearningCard && ['failed', 'rejected', 'hold', 'parked'].includes(sourceLearningCard.outcome),
+      );
+      const defaultPacks: ExperimentPackType[] = fromFailedPattern
+        ? [...DEFAULT_PACKS_BY_TYPE[thesis.type], 'counter_example']
+        : [...DEFAULT_PACKS_BY_TYPE[thesis.type]];
+      const packsToApply = packs && packs.length > 0 ? packs : defaultPacks;
+      const resolvedPacks = packsToApply
         .filter((pack, idx, arr) => arr.indexOf(pack) === idx);
+      outcome.autoCounterExample = fromFailedPattern && (!packs || packs.length === 0) && resolvedPacks.includes('counter_example');
       const costMultiplier = prev.quarter.activeEvent?.effect.planCostMultiplier ?? 1;
       const plannedBudget = Math.round(calcPackBudget(resolvedPacks) * costMultiplier);
       if (plannedBudget <= 0 || prev.resources.researchBudget < plannedBudget) {
@@ -657,6 +684,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     if (outcome.result === 'ok') {
       addNotification('success', '命题计划已确认', `${outcome.title} 已分配实验包并进入待执行。`);
+      if (outcome.autoCounterExample) {
+        addNotification('info', '已自动加入反例验证包', '该命题来自历史失效复盘，系统默认补充反例验证以降低重复犯错。');
+      }
       return;
     }
     if (outcome.result === 'invalid_status') {
