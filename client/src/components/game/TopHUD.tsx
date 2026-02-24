@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { buildMissionSnapshot } from './gameplayBlueprint';
 
 export function TopHUD() {
-  const { state, setActivePanel } = useGame();
+  const { state, setActivePanel, setInsightView } = useGame();
   const [showNotifs, setShowNotifs] = useState(false);
   const unreadCount = state.notifications.filter(n => !n.read).length;
   const missionSnapshot = buildMissionSnapshot(state);
@@ -23,7 +23,8 @@ export function TopHUD() {
   const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
   const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
   const liveStrategies = state.strategies.filter(s => s.status === 'live').length;
-  const oosUnlocked = state.portfolioCards.length > 0;
+  const oosConsumedCount = Object.keys(state.oosRegistry).length;
+  const oosUnlocked = oosConsumedCount > 0;
 
   return (
     <header className="relative z-50 border-b border-[oklch(0.22_0.02_260)] bg-[oklch(0.07_0.012_260_/_0.94)] backdrop-blur-xl">
@@ -67,6 +68,26 @@ export function TopHUD() {
             >
               {state.plan === 'pro' ? 'PRO' : 'FREE'}
             </button>
+
+            <div className="hidden md:flex items-center rounded-lg border border-[oklch(0.3_0.03_260)] bg-[oklch(0.12_0.02_260)] p-0.5">
+              {([
+                { key: 'player', label: '玩家' },
+                { key: 'pro', label: '专业' },
+                { key: 'audit', label: '审计' },
+              ] as const).map(item => (
+                <button
+                  key={item.key}
+                  onClick={() => setInsightView(item.key)}
+                  className={`px-2 py-1 font-display text-[10px] rounded-md transition-all ${
+                    state.insightView === item.key
+                      ? 'bg-[oklch(0.55_0.2_265_/_0.22)] text-[oklch(0.9_0.02_260)]'
+                      : 'text-[oklch(0.52_0.02_260)] hover:text-[oklch(0.85_0.01_260)]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
 
             <div className="relative">
               <button
@@ -128,7 +149,7 @@ export function TopHUD() {
             { label: '通过因子', value: passedFactors, color: 'oklch(0.75 0.12 200)' },
             { label: '采纳组合', value: adoptedPortfolios, color: 'oklch(0.72 0.19 155)' },
             { label: '实盘策略', value: liveStrategies, color: 'oklch(0.63 0.22 25)' },
-            { label: 'OOS', value: oosUnlocked ? '已解锁' : '未解锁', color: oosUnlocked ? 'oklch(0.72 0.19 155)' : 'oklch(0.82 0.15 85)' },
+            { label: 'OOS', value: oosUnlocked ? `已消费${oosConsumedCount}` : '未消费', color: oosUnlocked ? 'oklch(0.72 0.19 155)' : 'oklch(0.82 0.15 85)' },
             { label: 'P&L', value: `${state.totalPnl >= 0 ? '+' : ''}$${Math.round(state.totalPnl).toLocaleString()}`, color: state.totalPnl >= 0 ? 'oklch(0.72 0.19 155)' : 'oklch(0.63 0.22 25)' },
           ].map(item => (
             <div key={item.label} className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.24_0.025_260)] bg-[oklch(0.11_0.018_260)] px-2 py-1">

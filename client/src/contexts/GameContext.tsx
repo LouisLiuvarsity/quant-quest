@@ -7,6 +7,15 @@ export type TaskType = 'single_factor' | 'multi_factor';
 export type PlanType = 'free' | 'pro';
 export type FactorCardStatus = 'passed' | 'failed';
 export type PortfolioCardStatus = 'adopted' | 'rejected';
+export type InsightViewMode = 'player' | 'pro' | 'audit';
+
+export interface EvidenceSnapshot {
+  runId: string;
+  dataSegments: string[];
+  guardLog: string[];
+  keyParams: Record<string, string | number>;
+  reproducibilityId: string;
+}
 
 // --- Single Factor Workflow Steps ---
 export interface SingleFactorStep {
@@ -145,6 +154,7 @@ export interface ResumeDecisionInput {
 // --- Research Task ---
 export interface ResearchTask {
   id: string;
+  runId: string;
   type: TaskType;
   researcherId: string;
   status: 'running' | 'paused' | 'completed' | 'failed';
@@ -161,6 +171,9 @@ export interface ResearchTask {
   efficiencyScore: number; // 0~100, affects research speed
   stepCostMultiplier: number; // affects token burn in future steps
   decisionHistory: TaskDecisionRecord[];
+  guardLog: string[];
+  blendPlanKey?: string;
+  oosConsumedAt?: string;
   // Config
   singleFactorConfig?: SingleFactorConfig;
   multiFactorConfig?: MultiFactorConfig;
@@ -180,6 +193,7 @@ export interface TaskLog {
 // --- Factor Card (output of single factor workflow) ---
 export interface FactorCard {
   id: string;
+  runId: string;
   factorName: string;
   factorType: string; // 趋势/动量/均值回复
   description: string;
@@ -230,6 +244,7 @@ export interface FactorCard {
   discoveredByName: string;
   createdAt: string;
   taskId: string;
+  evidence: EvidenceSnapshot;
   // Chart data (simulated)
   equityCurve: number[];
   drawdownCurve: number[];
@@ -241,6 +256,7 @@ export interface FactorCard {
 // --- Portfolio Card (output of multi factor workflow) ---
 export interface PortfolioCard {
   id: string;
+  runId: string;
   name: string;
   includedFactors: string[]; // factor names
   includedFactorIds: string[];
@@ -276,6 +292,9 @@ export interface PortfolioCard {
   status: PortfolioCardStatus;
   createdAt: string;
   taskId: string;
+  oosConsumedAt?: string;
+  blendPlanKey: string;
+  evidence: EvidenceSnapshot;
   // Chart data
   equityCurve: number[];
   drawdownCurve: number[];
@@ -286,6 +305,7 @@ export interface PortfolioCard {
 export interface ResearchReport {
   id: string;
   taskId: string;
+  runId: string;
   type: TaskType;
   title: string;
   researcherName: string;
@@ -297,6 +317,7 @@ export interface ResearchReport {
   summary: string;
   insights: string[];
   recommendations: string[];
+  guardLog: string[];
   // Workflow log
   stepResults: StepResult[];
 }
@@ -356,6 +377,7 @@ export interface GameState {
   totalCredits: number;
   plan: PlanType;
   playMode: PlayMode;
+  insightView: InsightViewMode;
   projectConfig: ProjectConfig | null; // null until Step 0 is done
   researchers: Researcher[];
   factorCards: FactorCard[];
@@ -367,6 +389,7 @@ export interface GameState {
   totalPnl: number;
   maxLiveStrategies: number;
   notifications: GameNotification[];
+  oosRegistry: Record<string, string>;
 }
 
 // ============ Token Cost Config ============
@@ -403,6 +426,14 @@ export const FACTOR_TYPES = [
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const clampScore = (value: number) => clampNumber(Math.round(value), 0, 100);
 const clampCostMultiplier = (value: number) => Number(clampNumber(value, 0.75, 1.65).toFixed(2));
+const createRunId = () => `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const createReproId = (seed: string) =>
+  `rep-${seed.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase().slice(0, 72)}`;
+
+const buildBlendPlanKey = (config: MultiFactorConfig) => {
+  const factorKey = [...config.selectedFactorIds].sort().join(',');
+  return `factors=${factorKey}|blend=${config.blendMode}|weight=${config.weightMethod}|corr=${config.correlationThreshold.toFixed(2)}`;
+};
 
 const DEFAULT_SINGLE_FACTOR_DECISIONS: TaskDecisionOption[] = [
   {
@@ -701,6 +732,7 @@ const INITIAL_STATE: GameState = {
   totalCredits: 10_000_000,
   plan: 'free',
   playMode: 'guided',
+  insightView: 'player',
   projectConfig: null,
   researchers: INITIAL_RESEARCHERS,
   factorCards: [],
@@ -712,6 +744,7 @@ const INITIAL_STATE: GameState = {
   totalPnl: 0,
   maxLiveStrategies: 3,
   notifications: [],
+  oosRegistry: {},
 };
 
 // ============ Simulation Helpers ============
@@ -762,6 +795,8 @@ function simulateFactorCard(
   researcherName: string,
   researcherId: string,
   taskId: string,
+  runId: string,
+  guardLog: string[],
   profile: TaskPerformanceProfile,
 ): FactorCard {
   const qualityBias = (profile.qualityScore - 50) / 50;
@@ -792,22 +827,39 @@ function simulateFactorCard(
   };
   const names = factorNames[config.factorType] || factorNames.custom;
   const factorName = names[Math.floor(Math.random() * names.length)] + '_' + Math.floor(Math.random() * 100);
+  const bestParams = {
+    zscore_window: [20, 40, 60, 120][Math.floor(Math.random() * 4)],
+    ewma_span: [3, 5, 10, 20][Math.floor(Math.random() * 4)],
+    tanh_c: [0.5, 1.0, 1.5, 2.0][Math.floor(Math.random() * 4)],
+    min_hold: [1, 3, 5][Math.floor(Math.random() * 3)],
+    cooldown: [0, 1, 3, 5][Math.floor(Math.random() * 4)],
+    target_vol: 0.15,
+  };
+  const evidence: EvidenceSnapshot = {
+    runId,
+    dataSegments: ['IS', 'VAL'],
+    guardLog: guardLog.length > 0 ? guardLog : ['project_config_locked', 'oos_reserved_for_multi'],
+    keyParams: {
+      factorType: config.factorType,
+      fwdPeriod: config.fwdPeriod,
+      zscore_window: bestParams.zscore_window,
+      ewma_span: bestParams.ewma_span,
+      tanh_c: bestParams.tanh_c,
+      min_hold: bestParams.min_hold,
+      cooldown: bestParams.cooldown,
+    },
+    reproducibilityId: createReproId(`${runId}-${config.factorType}-${config.fwdPeriod}`),
+  };
 
   return {
     id: `fc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    runId,
     factorName,
     factorType: config.factorType,
     description: config.factorDescription,
     barSize: 'inherited',
     fwdPeriod: config.fwdPeriod,
-    bestParams: {
-      zscore_window: [20, 40, 60, 120][Math.floor(Math.random() * 4)],
-      ewma_span: [3, 5, 10, 20][Math.floor(Math.random() * 4)],
-      tanh_c: [0.5, 1.0, 1.5, 2.0][Math.floor(Math.random() * 4)],
-      min_hold: [1, 3, 5][Math.floor(Math.random() * 3)],
-      cooldown: [0, 1, 3, 5][Math.floor(Math.random() * 4)],
-      target_vol: 0.15,
-    },
+    bestParams,
     valPerformance: {
       winRate,
       medianSharpe: sharpe,
@@ -839,6 +891,7 @@ function simulateFactorCard(
     discoveredByName: researcherName,
     createdAt: new Date().toLocaleString('zh-CN'),
     taskId,
+    evidence,
     equityCurve,
     drawdownCurve: generateDrawdownCurve(equityCurve),
     monthlyReturns: generateMonthlyReturns(),
@@ -847,10 +900,18 @@ function simulateFactorCard(
   };
 }
 
+interface PortfolioTaskMeta {
+  taskId: string;
+  runId: string;
+  guardLog: string[];
+  blendPlanKey: string;
+  oosConsumedAt?: string;
+}
+
 function simulatePortfolioCard(
   config: MultiFactorConfig,
   factorCards: FactorCard[],
-  taskId: string,
+  taskMeta: PortfolioTaskMeta,
   profile: TaskPerformanceProfile,
 ): PortfolioCard {
   const qualityBias = (profile.qualityScore - 50) / 50;
@@ -864,8 +925,20 @@ function simulatePortfolioCard(
   if (!bestSingle) {
     const fallbackSharpe = 0.72;
     const fallbackCurve = generateEquityCurve(fallbackSharpe);
+    const evidence: EvidenceSnapshot = {
+      runId: taskMeta.runId,
+      dataSegments: ['VAL', 'OOS'],
+      guardLog: taskMeta.guardLog,
+      keyParams: {
+        blendMode: config.blendMode,
+        weightMethod: config.weightMethod,
+        correlationThreshold: config.correlationThreshold,
+      },
+      reproducibilityId: createReproId(`${taskMeta.runId}-${taskMeta.blendPlanKey}`),
+    };
     return {
       id: `pc-${Date.now()}`,
+      runId: taskMeta.runId,
       name: '组合_空池',
       includedFactors: [],
       includedFactorIds: [],
@@ -895,7 +968,10 @@ function simulatePortfolioCard(
       drawdownImprovement: 0,
       status: 'rejected',
       createdAt: new Date().toLocaleString('zh-CN'),
-      taskId,
+      taskId: taskMeta.taskId,
+      oosConsumedAt: taskMeta.oosConsumedAt,
+      blendPlanKey: taskMeta.blendPlanKey,
+      evidence,
       equityCurve: fallbackCurve,
       drawdownCurve: generateDrawdownCurve(fallbackCurve),
       comparisonCurve: generateEquityCurve(0.6),
@@ -910,9 +986,22 @@ function simulatePortfolioCard(
   const kept = (selectedFactors.length > 0 ? selectedFactors : [bestSingle]).filter(() => Math.random() > 0.2);
   if (kept.length === 0) kept.push(bestSingle);
   kept.forEach(f => { weights[f.factorName] = 1 / kept.length; });
+  const evidence: EvidenceSnapshot = {
+    runId: taskMeta.runId,
+    dataSegments: ['VAL', 'OOS'],
+    guardLog: taskMeta.guardLog,
+    keyParams: {
+      blendMode: config.blendMode,
+      weightMethod: config.weightMethod,
+      correlationThreshold: config.correlationThreshold,
+      factorCount: kept.length,
+    },
+    reproducibilityId: createReproId(`${taskMeta.runId}-${taskMeta.blendPlanKey}-${kept.length}`),
+  };
 
   return {
     id: `pc-${Date.now()}`,
+    runId: taskMeta.runId,
     name: `组合_${kept.map(f => f.factorName.slice(0, 4)).join('+')}`,
     includedFactors: kept.map(f => f.factorName),
     includedFactorIds: kept.map(f => f.id),
@@ -942,7 +1031,10 @@ function simulatePortfolioCard(
     drawdownImprovement: Math.random() * 5,
     status: multiIsBetter ? 'adopted' : 'rejected',
     createdAt: new Date().toLocaleString('zh-CN'),
-    taskId,
+    taskId: taskMeta.taskId,
+    oosConsumedAt: taskMeta.oosConsumedAt,
+    blendPlanKey: taskMeta.blendPlanKey,
+    evidence,
     equityCurve,
     drawdownCurve: generateDrawdownCurve(equityCurve),
     comparisonCurve: generateEquityCurve(baseSharpe),
@@ -1008,6 +1100,7 @@ function generateReport(task: ResearchTask, factorCard?: FactorCard, portfolioCa
     return {
       id: `rpt-${Date.now()}`,
       taskId: task.id,
+      runId: task.runId,
       type: 'single_factor',
       title: `因子研究报告: ${factorCard.factorName}`,
       researcherName: factorCard.discoveredByName,
@@ -1027,6 +1120,7 @@ function generateReport(task: ResearchTask, factorCard?: FactorCard, portfolioCa
       recommendations: factorCard.status === 'passed'
         ? ['建议纳入多因子合成候选池', `推荐参数区间: ${factorCard.recommendedParamRange}`, '建议在实盘前进一步观察 OOS 表现']
         : ['因子未通过验证阈值，建议调整因子逻辑或参数', '可尝试不同的信号构造方式', '检查因子在不同市场环境下的表现差异'],
+      guardLog: task.guardLog,
       stepResults,
     };
   }
@@ -1035,6 +1129,7 @@ function generateReport(task: ResearchTask, factorCard?: FactorCard, portfolioCa
     return {
       id: `rpt-${Date.now()}`,
       taskId: task.id,
+      runId: task.runId,
       type: 'multi_factor',
       title: `多因子合成报告: ${portfolioCard.name}`,
       researcherName: '',
@@ -1053,6 +1148,7 @@ function generateReport(task: ResearchTask, factorCard?: FactorCard, portfolioCa
       recommendations: portfolioCard.status === 'adopted'
         ? ['组合表现优于单因子，建议采纳', '可部署至实盘模拟验证']
         : ['组合未能显著改善单因子表现', '建议增加更多低相关因子', '考虑使用不同的合成权重方案'],
+      guardLog: task.guardLog,
       stepResults,
     };
   }
@@ -1060,6 +1156,7 @@ function generateReport(task: ResearchTask, factorCard?: FactorCard, portfolioCa
   return {
     id: `rpt-${Date.now()}`,
     taskId: task.id,
+    runId: task.runId,
     type: task.type,
     title: '研究报告',
     researcherName: '',
@@ -1068,6 +1165,7 @@ function generateReport(task: ResearchTask, factorCard?: FactorCard, portfolioCa
     summary: '研究完成',
     insights: [],
     recommendations: [],
+    guardLog: task.guardLog,
     stepResults,
   };
 }
@@ -1092,6 +1190,7 @@ interface GameContextType {
   changeRole: (researcherId: string, role: string) => void;
   setProjectConfig: (config: ProjectConfig) => void;
   setPlayMode: (mode: PlayMode) => void;
+  setInsightView: (mode: InsightViewMode) => void;
   startSingleFactorTask: (researcherId: string, config: SingleFactorConfig) => void;
   startMultiFactorTask: (researcherId: string, config: MultiFactorConfig) => void;
   resumeTask: (taskId: string, decision?: ResumeDecisionInput) => void;
@@ -1184,6 +1283,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, playMode: mode }));
   }, []);
 
+  const setInsightView = useCallback((mode: InsightViewMode) => {
+    setState(prev => ({ ...prev, insightView: mode }));
+  }, []);
+
   // --- Step-by-step task simulation ---
   const advanceTaskStep = useCallback((taskId: string, researcherId: string, taskType: TaskType) => {
     const steps = taskType === 'single_factor' ? SINGLE_FACTOR_STEPS : MULTI_FACTOR_STEPS;
@@ -1212,14 +1315,33 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
         if (taskType === 'single_factor' && task.singleFactorConfig) {
           const researcher = prev.researchers.find(r => r.id === researcherId);
-          const fc = simulateFactorCard(task.singleFactorConfig, researcher?.skin.name || '', researcherId, taskId, profile);
+          const fc = simulateFactorCard(
+            task.singleFactorConfig,
+            researcher?.skin.name || '',
+            researcherId,
+            taskId,
+            task.runId,
+            task.guardLog,
+            profile,
+          );
           newFactorCards = [...prev.factorCards, fc];
           factorCardId = fc.id;
           const report = generateReport({ ...task, status: 'completed' }, fc);
           reportId = report.id;
           newReports = [report, ...prev.reports];
         } else if (taskType === 'multi_factor' && task.multiFactorConfig) {
-          const pc = simulatePortfolioCard(task.multiFactorConfig, prev.factorCards, taskId, profile);
+          const pc = simulatePortfolioCard(
+            task.multiFactorConfig,
+            prev.factorCards,
+            {
+              taskId,
+              runId: task.runId,
+              guardLog: task.guardLog,
+              blendPlanKey: task.blendPlanKey || buildBlendPlanKey(task.multiFactorConfig),
+              oosConsumedAt: task.oosConsumedAt,
+            },
+            profile,
+          );
           newPortfolioCards = [...prev.portfolioCards, pc];
           portfolioCardId = pc.id;
           const report = generateReport({ ...task, status: 'completed' }, undefined, pc);
@@ -1244,18 +1366,119 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       const nextStep = steps[nextStepIndex];
       const overallProgress = Math.round(((nextStepIndex) / steps.length) * 100);
-      const newLogs = [...task.logs, ...generateStepLogs(steps, nextStepIndex)];
+      let newLogs = [...task.logs, ...generateStepLogs(steps, nextStepIndex)];
       const stepCost = Math.round(TOKEN_COSTS[taskType].perStep * task.stepCostMultiplier);
+      let guardLog = task.guardLog;
+      let oosConsumedAt = task.oosConsumedAt;
+      let oosRegistry = prev.oosRegistry;
+
+      if (taskType === 'multi_factor' && nextStep.id === 'M8' && task.blendPlanKey) {
+        const consumedAt = task.oosConsumedAt || new Date().toISOString();
+        oosConsumedAt = consumedAt;
+        if (!prev.oosRegistry[task.blendPlanKey]) {
+          oosRegistry = { ...prev.oosRegistry, [task.blendPlanKey]: consumedAt };
+          guardLog = [...task.guardLog, `oos_consumed_at:${consumedAt}`, `blend_plan_key:${task.blendPlanKey}`];
+          const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          newLogs = [
+            ...newLogs,
+            {
+              timestamp: now,
+              stepId: 'M8',
+              message: '🔒 OOS 已登记一次性消费：当前组合方案后续不可重跑',
+              type: 'warning',
+            },
+          ];
+        }
+      }
 
       // If interactive step, pause
       if (nextStep.isInteractive) {
+        if (prev.playMode === 'expert') {
+          const options = getDecisionOptions(taskType, nextStep.id);
+          const selectedOption = options[1] ?? options[0];
+          if (selectedOption) {
+            const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const summary = summarizeDecisionImpact(selectedOption.impact);
+            const decisionRecord: TaskDecisionRecord = {
+              stepId: nextStep.id,
+              stepName: nextStep.name,
+              optionId: selectedOption.id,
+              optionLabel: selectedOption.label,
+              summary,
+              impact: selectedOption.impact,
+              timestamp: now,
+            };
+            const nextQuality = clampScore(task.qualityScore + selectedOption.impact.quality);
+            const nextRisk = clampScore(task.riskScore + selectedOption.impact.risk);
+            const nextEfficiency = clampScore(task.efficiencyScore + selectedOption.impact.efficiency);
+            const nextMultiplier = clampCostMultiplier(task.stepCostMultiplier + selectedOption.impact.costMultiplier);
+            const speedMultiplier = clampNumber(1 - ((nextEfficiency - 50) / 220), 0.62, 1.42);
+            const stepDuration = Math.round((700 + Math.random() * 400) * speedMultiplier);
+            const timer = setTimeout(() => {
+              advanceTaskStep(taskId, researcherId, taskType);
+            }, stepDuration);
+            taskTimersRef.current.set(`${taskId}-${nextStepIndex}-expert`, timer);
+
+            return {
+              ...prev,
+              oosRegistry,
+              researchers: prev.researchers.map(r =>
+                r.id === researcherId ? { ...r, status: 'researching', progress: overallProgress } : r
+              ),
+              activeTasks: prev.activeTasks.map(t =>
+                t.id === taskId ? {
+                  ...t,
+                  status: 'running',
+                  currentStepIndex: nextStepIndex,
+                  overallProgress,
+                  progress: 0,
+                  logs: [
+                    ...newLogs,
+                    {
+                      timestamp: now,
+                      stepId: nextStep.id,
+                      message: `🤖 专家模式自动决策: ${selectedOption.label}`,
+                      type: 'decision',
+                    },
+                    {
+                      timestamp: now,
+                      stepId: nextStep.id,
+                      message: `📈 自动决策影响: ${summary}`,
+                      type: 'info',
+                    },
+                  ],
+                  tokenCost: t.tokenCost + stepCost,
+                  qualityScore: nextQuality,
+                  riskScore: nextRisk,
+                  efficiencyScore: nextEfficiency,
+                  stepCostMultiplier: nextMultiplier,
+                  decisionHistory: [...t.decisionHistory, decisionRecord],
+                  guardLog,
+                  oosConsumedAt,
+                } : t
+              ),
+            };
+          }
+        }
+
         return {
           ...prev,
+          oosRegistry,
           researchers: prev.researchers.map(r =>
             r.id === researcherId ? { ...r, status: 'waiting', progress: overallProgress } : r
           ),
           activeTasks: prev.activeTasks.map(t =>
-            t.id === taskId ? { ...t, status: 'paused', currentStepIndex: nextStepIndex, overallProgress, progress: 0, logs: newLogs, tokenCost: t.tokenCost + stepCost } : t
+            t.id === taskId ? {
+              ...t,
+              status: 'paused',
+              currentStepIndex: nextStepIndex,
+              overallProgress,
+              progress: 0,
+              logs: newLogs,
+              tokenCost: t.tokenCost + stepCost,
+              guardLog,
+              oosConsumedAt,
+            } : t
           ),
         };
       }
@@ -1270,8 +1493,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       return {
         ...prev,
+        oosRegistry,
         activeTasks: prev.activeTasks.map(t =>
-          t.id === taskId ? { ...t, currentStepIndex: nextStepIndex, overallProgress, progress: 0, logs: newLogs, tokenCost: t.tokenCost + stepCost } : t
+          t.id === taskId ? {
+            ...t,
+            currentStepIndex: nextStepIndex,
+            overallProgress,
+            progress: 0,
+            logs: newLogs,
+            tokenCost: t.tokenCost + stepCost,
+            guardLog,
+            oosConsumedAt,
+          } : t
         ),
         researchers: prev.researchers.map(r =>
           r.id === researcherId ? { ...r, progress: overallProgress } : r
@@ -1287,6 +1520,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
 
     const taskId = `task-${Date.now()}`;
+    const runId = createRunId();
     const steps = SINGLE_FACTOR_STEPS;
 
     // S0 is global project config and is always completed first.
@@ -1297,6 +1531,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     const task: ResearchTask = {
       id: taskId,
+      runId,
       type: 'single_factor',
       researcherId,
       status: isFirstStepInteractive ? 'paused' : 'running',
@@ -1312,6 +1547,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       efficiencyScore: 50,
       stepCostMultiplier: 1,
       decisionHistory: [],
+      guardLog: ['project_config_locked', 'oos_reserved_for_multi'],
       singleFactorConfig: config,
     };
 
@@ -1343,13 +1579,28 @@ export function GameProvider({ children }: { children: ReactNode }) {
       addNotification('warning', '请先完成项目配置', '无论新手或专业模式，发起研究前都必须先完成项目配置。');
       return;
     }
+    if (state.projectConfig.splitMode !== 'three_way') {
+      addNotification('warning', '需要三段切分', '多因子流程必须保留 IS/VAL/OOS 三段切分，当前配置不可启动。');
+      return;
+    }
+    const blendPlanKey = buildBlendPlanKey(config);
+    if (state.oosRegistry[blendPlanKey]) {
+      addNotification('warning', 'OOS 已消费', '该组合方案已完成 OOS 终评。请调整因子或权重后再发起新任务。');
+      return;
+    }
+    if (state.activeTasks.some(task => task.type === 'multi_factor' && task.blendPlanKey === blendPlanKey && task.status !== 'completed')) {
+      addNotification('warning', '方案进行中', '当前组合方案已有进行中的任务，请先等待其结束。');
+      return;
+    }
 
     const taskId = `task-${Date.now()}`;
+    const runId = createRunId();
     const steps = MULTI_FACTOR_STEPS;
     const initialLogs = generateStepLogs(steps, 0);
 
     const task: ResearchTask = {
       id: taskId,
+      runId,
       type: 'multi_factor',
       researcherId,
       status: 'running',
@@ -1365,6 +1616,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       efficiencyScore: 50,
       stepCostMultiplier: 1,
       decisionHistory: [],
+      guardLog: ['project_config_locked', 'three_way_split_confirmed', 'oos_not_consumed'],
+      blendPlanKey,
       multiFactorConfig: config,
     };
 
@@ -1373,6 +1626,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (!researcher || researcher.status !== 'idle') return prev;
       if (prev.credits < TOKEN_COSTS.multi_factor.base) return prev;
       if (!prev.projectConfig) return prev;
+      if (prev.projectConfig.splitMode !== 'three_way') return prev;
+      if (prev.oosRegistry[blendPlanKey]) return prev;
+      if (prev.activeTasks.some(task => task.type === 'multi_factor' && task.blendPlanKey === blendPlanKey && task.status !== 'completed')) return prev;
 
       return {
         ...prev,
@@ -1387,7 +1643,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     taskTimersRef.current.set(`${taskId}-start`, timer);
 
     addNotification('info', '多因子合成启动', `开始 ${steps.length} 步多因子合成工作流`);
-  }, [state.projectConfig, advanceTaskStep, addNotification]);
+  }, [state.projectConfig, state.oosRegistry, state.activeTasks, advanceTaskStep, addNotification]);
 
   const resumeTask = useCallback((taskId: string, decision?: ResumeDecisionInput) => {
     setState(prev => {
@@ -1531,6 +1787,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       changeRole,
       setProjectConfig,
       setPlayMode,
+      setInsightView,
       startSingleFactorTask,
       startMultiFactorTask,
       resumeTask,

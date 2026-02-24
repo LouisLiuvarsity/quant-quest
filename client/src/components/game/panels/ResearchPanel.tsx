@@ -278,7 +278,8 @@ function MultiFactorSetup({ researcherId, onBack }: { researcherId: string; onBa
   const passedFactors = state.factorCards.filter(f => f.status === 'passed');
   const estimatedTokens = TOKEN_COSTS.multi_factor.base + TOKEN_COSTS.multi_factor.perStep * MULTI_FACTOR_STEPS.length;
   const canAfford = state.credits >= estimatedTokens;
-  const canStart = selectedFactorIds.length >= 2 && canAfford;
+  const hasThreeWaySplit = state.projectConfig?.splitMode === 'three_way';
+  const canStart = selectedFactorIds.length >= 2 && canAfford && hasThreeWaySplit;
 
   const toggleFactor = (id: string) => {
     setSelectedFactorIds(prev =>
@@ -307,9 +308,18 @@ function MultiFactorSetup({ researcherId, onBack }: { researcherId: string; onBa
       <div className="border-2 border-[oklch(0.72_0.19_155_/_0.3)] bg-[oklch(0.72_0.19_155_/_0.05)] p-3">
         <p className="font-pixel text-[8px] text-[oklch(0.72_0.19_155)]">🧬 多因子合成任务</p>
         <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] mt-1">
-          需要 ≥2 个已验证因子 | {MULTI_FACTOR_STEPS.length} 步工作流
+          需要 ≥2 个已验证因子 + 三段切分 (IS/VAL/OOS) | {MULTI_FACTOR_STEPS.length} 步工作流
         </p>
       </div>
+
+      {!hasThreeWaySplit && (
+        <div className="border-2 border-[oklch(0.63_0.22_25_/_0.4)] bg-[oklch(0.63_0.22_25_/_0.08)] p-3">
+          <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">⚠️ 当前项目为两段切分</p>
+          <p className="font-display text-[10px] text-[oklch(0.72_0.02_260)] mt-1 leading-relaxed">
+            多因子任务会消费 OOS 终评，因此必须先切换到三段切分。请返回上一层，在项目配置里改为 IS/VAL/OOS 后再启动。
+          </p>
+        </div>
+      )}
 
       {/* Select Factors */}
       <div>
@@ -419,7 +429,7 @@ function MultiFactorSetup({ researcherId, onBack }: { researcherId: string; onBa
             : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)] cursor-not-allowed'
         }`}
       >
-        🧬 开始多因子合成 ({MULTI_FACTOR_STEPS.length} 步)
+        {hasThreeWaySplit ? `🧬 开始多因子合成 (${MULTI_FACTOR_STEPS.length} 步)` : '🧬 需先切换到三段切分'}
       </button>
     </div>
   );
@@ -858,10 +868,13 @@ export function ResearchPanel() {
   const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
   const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
   const isGuidedMode = state.playMode === 'guided';
-  const canStartMulti = passedFactors >= 2;
+  const hasThreeWaySplit = state.projectConfig?.splitMode === 'three_way';
+  const canStartMulti = passedFactors >= 2 && hasThreeWaySplit;
 
   const stageHint = !state.projectConfig
     ? '先完成项目配置，再启动第一条单因子研究链路。'
+    : !hasThreeWaySplit
+      ? '当前是两段切分 (IS/TEST)。请先改为三段切分 (IS/VAL/OOS)，再开启多因子与 OOS 终评。'
     : isGuidedMode
       ? passedFactors < 2
         ? '新手模式：先用单因子任务凑齐 2 个通过因子，再进入多因子。'
@@ -892,20 +905,29 @@ export function ResearchPanel() {
     {
       id: 'multi',
       title: '产出 1 个可部署组合',
-      detail: '把通过因子合成为组合，并观察是否优于最优单因子',
-      done: adoptedPortfolios >= 1,
-      progressText: `${Math.min(adoptedPortfolios, 1)}/1`,
+      detail: hasThreeWaySplit
+        ? '把通过因子合成为组合，并观察是否优于最优单因子'
+        : '先在项目配置切换到三段切分，再执行多因子合成',
+      done: hasThreeWaySplit && adoptedPortfolios >= 1,
+      progressText: hasThreeWaySplit ? `${Math.min(adoptedPortfolios, 1)}/1` : '需切分',
     },
   ] as const;
 
   const nextGuidedStep = guidedChecklist.find(step => !step.done) ?? null;
-  const guidedRecommendedTask = nextGuidedStep?.id === 'single' || nextGuidedStep?.id === 'multi'
-    ? (nextGuidedStep.id === 'single' ? 'single_factor' : 'multi_factor')
+  const guidedRecommendedTask = nextGuidedStep?.id === 'single' || (nextGuidedStep?.id === 'multi' && hasThreeWaySplit)
+    ? (nextGuidedStep.id === 'single' ? 'single_factor' : hasThreeWaySplit ? 'multi_factor' : null)
     : null;
+  const requiresResearcherForGuidedAction = Boolean(
+    nextGuidedStep && (nextGuidedStep.id === 'single' || (nextGuidedStep.id === 'multi' && hasThreeWaySplit)),
+  );
 
   const handleGuidedAction = () => {
     if (!nextGuidedStep) return;
     if (nextGuidedStep.id === 'project') {
+      setView('config');
+      return;
+    }
+    if (nextGuidedStep.id === 'multi' && !hasThreeWaySplit) {
       setView('config');
       return;
     }
@@ -1014,9 +1036,9 @@ export function ResearchPanel() {
             </div>
             <button
               onClick={handleGuidedAction}
-              disabled={!nextGuidedStep || ((nextGuidedStep.id === 'single' || nextGuidedStep.id === 'multi') && !leadIdleResearcher)}
+              disabled={!nextGuidedStep || (requiresResearcherForGuidedAction && !leadIdleResearcher)}
               className={`shrink-0 font-pixel text-[7px] px-2.5 py-2 border-2 transition-all ${
-                nextGuidedStep && (nextGuidedStep.id === 'project' || leadIdleResearcher)
+                nextGuidedStep && (!requiresResearcherForGuidedAction || leadIdleResearcher)
                   ? 'bg-[oklch(0.82_0.15_85)] text-[oklch(0.12_0.02_260)] border-[oklch(0.88_0.16_85)] hover:brightness-110'
                   : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)] cursor-not-allowed'
               }`}
@@ -1024,6 +1046,8 @@ export function ResearchPanel() {
               {nextGuidedStep
                 ? nextGuidedStep.id === 'project'
                   ? '去配置'
+                  : nextGuidedStep.id === 'multi' && !hasThreeWaySplit
+                    ? '先改切分'
                   : leadIdleResearcher
                     ? `派给 ${leadIdleResearcher.skin.name}`
                     : '暂无空闲研究员'
@@ -1145,6 +1169,13 @@ export function ResearchPanel() {
                 </div>
               );
             })}
+          </div>
+        )}
+        {passedFactors >= 2 && !hasThreeWaySplit && (
+          <div className="mt-2 border border-[oklch(0.63_0.22_25_/_0.35)] bg-[oklch(0.63_0.22_25_/_0.08)] px-2.5 py-2">
+            <p className="font-display text-[10px] text-[oklch(0.82_0.15_85)]">
+              已满足因子数量，但当前切分为 IS/TEST。请先在「项目配置」改为 IS/VAL/OOS 才能发起多因子。
+            </p>
           </div>
         )}
       </div>

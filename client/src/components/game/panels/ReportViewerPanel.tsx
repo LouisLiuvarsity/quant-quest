@@ -4,7 +4,7 @@
  * Supports both single-factor and multi-factor reports
  */
 
-import { useGame, type ResearchReport, type FactorCard, type PortfolioCard } from '@/contexts/GameContext';
+import { useGame, type ResearchReport, type FactorCard, type PortfolioCard, type InsightViewMode } from '@/contexts/GameContext';
 import { useEffect, useRef } from 'react';
 
 const COLORS = {
@@ -88,7 +88,9 @@ function MetricRow({ label, value, color }: { label: string; value: string; colo
   );
 }
 
-function FactorCardReport({ card }: { card: FactorCard }) {
+function FactorCardReport({ card, viewMode }: { card: FactorCard; viewMode: InsightViewMode }) {
+  const showAdvanced = viewMode !== 'player';
+  const showAudit = viewMode === 'audit';
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -119,48 +121,65 @@ function FactorCardReport({ card }: { card: FactorCard }) {
           <MetricRow label="中位换手率" value={`${(card.valPerformance.medianTurnover * 100).toFixed(1)}%`} />
         </div>
       </div>
-      <div>
-        <p className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] mb-2">🔍 因子画像</p>
-        <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
-          <MetricRow label="IC" value={card.profile.ic.toFixed(4)} color="text-[oklch(0.55_0.2_265)]" />
-          <MetricRow label="RankIC" value={card.profile.rankIc.toFixed(4)} color="text-[oklch(0.55_0.2_265)]" />
-          <MetricRow label="ICIR" value={card.profile.icir.toFixed(2)} />
-          <MetricRow label="RankICIR" value={card.profile.rankIcir.toFixed(2)} />
-          <MetricRow label="IC 胜率" value={`${(card.profile.icWinRate * 100).toFixed(0)}%`} />
-          <MetricRow label="覆盖率" value={`${(card.profile.coverageMean * 100).toFixed(0)}%`} />
+      {showAdvanced && (
+        <>
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] mb-2">🔍 因子画像</p>
+            <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+              <MetricRow label="IC" value={card.profile.ic.toFixed(4)} color="text-[oklch(0.55_0.2_265)]" />
+              <MetricRow label="RankIC" value={card.profile.rankIc.toFixed(4)} color="text-[oklch(0.55_0.2_265)]" />
+              <MetricRow label="ICIR" value={card.profile.icir.toFixed(2)} />
+              <MetricRow label="RankICIR" value={card.profile.rankIcir.toFixed(2)} />
+              <MetricRow label="IC 胜率" value={`${(card.profile.icWinRate * 100).toFixed(0)}%`} />
+              <MetricRow label="覆盖率" value={`${(card.profile.coverageMean * 100).toFixed(0)}%`} />
+            </div>
+          </div>
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">⚙️ 最优参数</p>
+            <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+              <MetricRow label="zscore_window" value={String(card.bestParams.zscore_window)} />
+              <MetricRow label="ewma_span" value={String(card.bestParams.ewma_span)} />
+              <MetricRow label="tanh_c" value={String(card.bestParams.tanh_c)} />
+              <MetricRow label="min_hold" value={String(card.bestParams.min_hold)} />
+              <MetricRow label="cooldown" value={String(card.bestParams.cooldown)} />
+              <MetricRow label="target_vol" value={String(card.bestParams.target_vol)} />
+            </div>
+          </div>
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">🧪 敏感性检验</p>
+            <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+              <MetricRow label="参数稳定性" value={card.sensitivity.paramStable ? '✅ 稳定' : '⚠️ 不稳定'} color={card.sensitivity.paramStable ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.82_0.15_85)]'} />
+              <MetricRow label="1x成本后 Sharpe" value={card.sensitivity.costSharpe1x.toFixed(2)} />
+              <MetricRow label="成本可行性" value={card.sensitivity.costViable ? '✅ 可行' : '⚠️ 不可行'} color={card.sensitivity.costViable ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'} />
+            </div>
+          </div>
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">📊 分组分析</p>
+            <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+              <MetricRow label="最佳适用分组" value={card.bestGroup} />
+              <MetricRow label="推荐参数区间" value={card.recommendedParamRange} />
+            </div>
+          </div>
+        </>
+      )}
+      {showAudit && (
+        <div>
+          <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">🧾 审计证据链</p>
+          <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+            <MetricRow label="run_id" value={card.evidence.runId} />
+            <MetricRow label="repro_id" value={card.evidence.reproducibilityId} />
+            <MetricRow label="data_segment" value={card.evidence.dataSegments.join(' / ')} />
+            <MetricRow label="guard_count" value={String(card.evidence.guardLog.length)} />
+          </div>
         </div>
-      </div>
-      <div>
-        <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">⚙️ 最优参数</p>
-        <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
-          <MetricRow label="zscore_window" value={String(card.bestParams.zscore_window)} />
-          <MetricRow label="ewma_span" value={String(card.bestParams.ewma_span)} />
-          <MetricRow label="tanh_c" value={String(card.bestParams.tanh_c)} />
-          <MetricRow label="min_hold" value={String(card.bestParams.min_hold)} />
-          <MetricRow label="cooldown" value={String(card.bestParams.cooldown)} />
-          <MetricRow label="target_vol" value={String(card.bestParams.target_vol)} />
-        </div>
-      </div>
-      <div>
-        <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">🧪 敏感性检验</p>
-        <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
-          <MetricRow label="参数稳定性" value={card.sensitivity.paramStable ? '✅ 稳定' : '⚠️ 不稳定'} color={card.sensitivity.paramStable ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.82_0.15_85)]'} />
-          <MetricRow label="1x成本后 Sharpe" value={card.sensitivity.costSharpe1x.toFixed(2)} />
-          <MetricRow label="成本可行性" value={card.sensitivity.costViable ? '✅ 可行' : '⚠️ 不可行'} color={card.sensitivity.costViable ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'} />
-        </div>
-      </div>
-      <div>
-        <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">📊 分组分析</p>
-        <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
-          <MetricRow label="最佳适用分组" value={card.bestGroup} />
-          <MetricRow label="推荐参数区间" value={card.recommendedParamRange} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function PortfolioCardReport({ card }: { card: PortfolioCard }) {
+function PortfolioCardReport({ card, viewMode }: { card: PortfolioCard; viewMode: InsightViewMode }) {
+  const showAdvanced = viewMode !== 'player';
+  const showAudit = viewMode === 'audit';
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -209,34 +228,52 @@ function PortfolioCardReport({ card }: { card: PortfolioCard }) {
           <MetricRow label="中位换手率" value={`${(card.oosPerformance.medianTurnover * 100).toFixed(1)}%`} />
         </div>
       </div>
-      <div>
-        <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">🧪 敏感性检验</p>
-        <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
-          <MetricRow label="参数稳定性" value={card.sensitivity.paramStable ? '✅ 稳定' : '⚠️ 不稳定'} />
-          <MetricRow label="1x成本后 Sharpe" value={card.sensitivity.costSharpe1x.toFixed(2)} />
-          <MetricRow label="成本可行性" value={card.sensitivity.costViable ? '✅ 可行' : '⚠️ 不可行'} />
-          <MetricRow label="权重稳定性" value={card.sensitivity.weightStable ? '✅ 稳定' : '⚠️ 不稳定'} />
+      {showAdvanced && (
+        <>
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">🧪 敏感性检验</p>
+            <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+              <MetricRow label="参数稳定性" value={card.sensitivity.paramStable ? '✅ 稳定' : '⚠️ 不稳定'} />
+              <MetricRow label="1x成本后 Sharpe" value={card.sensitivity.costSharpe1x.toFixed(2)} />
+              <MetricRow label="成本可行性" value={card.sensitivity.costViable ? '✅ 可行' : '⚠️ 不可行'} />
+              <MetricRow label="权重稳定性" value={card.sensitivity.weightStable ? '✅ 稳定' : '⚠️ 不稳定'} />
+            </div>
+          </div>
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">⚔️ 单因子基准对比</p>
+            <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+              <MetricRow label="最优单因子" value={card.bestSingleFactor} />
+              <MetricRow label="单因子 Sharpe" value={card.bestSingleSharpe.toFixed(2)} />
+              <MetricRow label="多因子优于单因子" value={card.multiIsBetter ? '✅ 是' : '❌ 否'} color={card.multiIsBetter ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'} />
+              <MetricRow label="Sharpe 提升" value={`+${card.sharpeImprovement.toFixed(2)}`} color="text-[oklch(0.55_0.2_265)]" />
+              <MetricRow label="回撤改善" value={`${card.drawdownImprovement.toFixed(1)}%`} color="text-[oklch(0.72_0.19_155)]" />
+            </div>
+          </div>
+        </>
+      )}
+      {showAudit && (
+        <div>
+          <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">🧾 审计证据链</p>
+          <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
+            <MetricRow label="run_id" value={card.evidence.runId} />
+            <MetricRow label="repro_id" value={card.evidence.reproducibilityId} />
+            <MetricRow label="data_segment" value={card.evidence.dataSegments.join(' / ')} />
+            <MetricRow label="oos_consumed_at" value={card.oosConsumedAt || '未记录'} />
+            <MetricRow label="blend_plan_key" value={card.blendPlanKey} />
+            <MetricRow label="guard_count" value={String(card.evidence.guardLog.length)} />
+          </div>
         </div>
-      </div>
-      <div>
-        <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">⚔️ 单因子基准对比</p>
-        <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3 space-y-1">
-          <MetricRow label="最优单因子" value={card.bestSingleFactor} />
-          <MetricRow label="单因子 Sharpe" value={card.bestSingleSharpe.toFixed(2)} />
-          <MetricRow label="多因子优于单因子" value={card.multiIsBetter ? '✅ 是' : '❌ 否'} color={card.multiIsBetter ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'} />
-          <MetricRow label="Sharpe 提升" value={`+${card.sharpeImprovement.toFixed(2)}`} color="text-[oklch(0.55_0.2_265)]" />
-          <MetricRow label="回撤改善" value={`${card.drawdownImprovement.toFixed(1)}%`} color="text-[oklch(0.72_0.19_155)]" />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
 export function ReportViewerPanel() {
   const { selectedReport, selectedFactorCard, selectedPortfolioCard, state, setSelectedFactorCard, setSelectedPortfolioCard, setActivePanel } = useGame();
+  const insightView = state.insightView;
 
-  if (selectedFactorCard) return <div className="p-4"><FactorCardReport card={selectedFactorCard} /></div>;
-  if (selectedPortfolioCard) return <div className="p-4"><PortfolioCardReport card={selectedPortfolioCard} /></div>;
+  if (selectedFactorCard) return <div className="p-4"><FactorCardReport card={selectedFactorCard} viewMode={insightView} /></div>;
+  if (selectedPortfolioCard) return <div className="p-4"><PortfolioCardReport card={selectedPortfolioCard} viewMode={insightView} /></div>;
   if (selectedReport) {
     const linkedFC = selectedReport.factorCardId ? state.factorCards.find(f => f.id === selectedReport.factorCardId) : null;
     const linkedPC = selectedReport.portfolioCardId ? state.portfolioCards.find(p => p.id === selectedReport.portfolioCardId) : null;
@@ -251,6 +288,15 @@ export function ReportViewerPanel() {
             <span className="font-display text-[10px] text-[oklch(0.82_0.15_85)]">🪙 {selectedReport.tokenCost.toLocaleString()}</span>
           </div>
         </div>
+        {insightView === 'audit' && (
+          <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3">
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">🧾 报告审计信息</p>
+            <div className="space-y-1">
+              <MetricRow label="run_id" value={selectedReport.runId} />
+              <MetricRow label="guard_count" value={String(selectedReport.guardLog.length)} />
+            </div>
+          </div>
+        )}
         <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] p-3">
           <p className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] mb-2">📝 摘要</p>
           <p className="font-display text-xs text-[oklch(0.75_0.01_260)] leading-relaxed">{selectedReport.summary}</p>
