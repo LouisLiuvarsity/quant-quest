@@ -52,11 +52,15 @@ export function ResearchPanel() {
   const createThesisFromForm = () => {
     const hypothesis = thesisHypothesis.trim();
     if (!hypothesis) return;
+    const resolvedType: ThesisType = isFirstRunLocked ? 'factor' : thesisType;
+    const resolvedGoal: ThesisGoal = isFirstRunLocked ? 'robustness' : thesisGoal;
+    if (isFirstRunLocked && thesisType !== 'factor') setThesisType('factor');
+    if (isFirstRunLocked && thesisGoal !== 'robustness') setThesisGoal('robustness');
     createThesis({
-      type: thesisType,
-      goal: thesisGoal,
+      type: resolvedType,
+      goal: resolvedGoal,
       hypothesis,
-      selectedFactorIds: thesisType === 'portfolio'
+      selectedFactorIds: resolvedType === 'portfolio'
         ? state.factorCards.filter(card => card.status === 'passed').slice(0, 3).map(card => card.id)
         : undefined,
     });
@@ -97,6 +101,8 @@ export function ResearchPanel() {
   ] as const;
   const nextFirstRunStep = firstRunChecklist.find(step => !step.done) ?? null;
   const firstRunDoneCount = firstRunChecklist.filter(step => step.done).length;
+  const isFirstRunCompleted = !nextFirstRunStep;
+  const isFirstRunLocked = isGuidedMode && !isFirstRunCompleted;
 
   const handleFirstRunAction = () => {
     if (!nextFirstRunStep) return;
@@ -119,7 +125,8 @@ export function ResearchPanel() {
       if (planned && leadIdleResearcher) {
         launchThesis(planned.id, leadIdleResearcher.id);
       } else {
-        setPlayMode('guided');
+        const draft = state.theses.find(item => item.status === 'draft' || item.status === 'parked');
+        if (draft) planThesis(draft.id);
       }
       return;
     }
@@ -145,7 +152,7 @@ export function ResearchPanel() {
       : nextFirstRunStep.id === 'create_thesis'
         ? thesisHypothesis.trim() ? '创建这条命题' : '一键填入示例命题'
         : nextFirstRunStep.id === 'launch_thesis'
-          ? '尝试派单执行'
+          ? '规划并派单'
           : nextFirstRunStep.id === 'make_verdict'
             ? '完成首局裁决'
             : '查看学习卡';
@@ -263,18 +270,28 @@ export function ResearchPanel() {
           </button>
           <button
             onClick={() => setPlayMode('expert')}
+            disabled={isFirstRunLocked}
             className={`text-left border-2 px-2.5 py-2 transition-all ${
-              !isGuidedMode
+              isFirstRunLocked
+                ? 'border-[oklch(0.22_0.025_260)] bg-[oklch(0.15_0.02_260)] cursor-not-allowed opacity-60'
+                : !isGuidedMode
                 ? 'border-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.12)]'
                 : 'border-[oklch(0.3_0.03_260)] bg-[oklch(0.14_0.02_260)] hover:border-[oklch(0.45_0.04_260)]'
             }`}
           >
             <p className={`font-pixel text-[7px] ${!isGuidedMode ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.55_0.02_260)]'}`}>🧠 专业直达模式</p>
             <p className="font-display text-[10px] text-[oklch(0.62_0.02_260)] mt-1 leading-relaxed">
-              直接指派研究员任务，快速推进并行流水线。
+              {isFirstRunLocked ? '先完成首轮脚本，解锁后可直接并行派单。' : '直接指派研究员任务，快速推进并行流水线。'}
             </p>
           </button>
         </div>
+        {isFirstRunLocked && (
+          <div className="mt-2 border border-[oklch(0.82_0.15_85_/_0.45)] bg-[oklch(0.82_0.15_85_/_0.08)] px-2.5 py-2">
+            <p className="font-display text-[10px] text-[oklch(0.82_0.15_85)]">
+              首轮引导进行中：已锁定专业模式和非必要分支，先完成上方「10分钟首局脚本」。
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-2 mt-3">
           <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.22_0.025_260)] p-2 text-center">
             <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">通过因子</p>
@@ -465,8 +482,11 @@ export function ResearchPanel() {
               <button
                 key={item.key}
                 onClick={() => setThesisType(item.key)}
+                disabled={isFirstRunLocked && item.key === 'portfolio'}
                 className={`font-display text-[10px] py-1.5 border transition-all ${
-                  thesisType === item.key
+                  isFirstRunLocked && item.key === 'portfolio'
+                    ? 'border-[oklch(0.22_0.025_260)] text-[oklch(0.35_0.02_260)] bg-[oklch(0.15_0.02_260)] cursor-not-allowed'
+                    : thesisType === item.key
                     ? 'border-[oklch(0.72_0.19_155)] text-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.12)]'
                     : 'border-[oklch(0.25_0.03_260)] text-[oklch(0.58_0.02_260)]'
                 }`}
@@ -482,8 +502,11 @@ export function ResearchPanel() {
               <button
                 key={item.key}
                 onClick={() => setThesisGoal(item.key)}
+                disabled={isFirstRunLocked && item.key !== 'robustness'}
                 className={`font-display text-[10px] py-1.5 border transition-all ${
-                  thesisGoal === item.key
+                  isFirstRunLocked && item.key !== 'robustness'
+                    ? 'border-[oklch(0.22_0.025_260)] text-[oklch(0.35_0.02_260)] bg-[oklch(0.15_0.02_260)] cursor-not-allowed'
+                    : thesisGoal === item.key
                     ? 'border-[oklch(0.55_0.2_265)] text-[oklch(0.55_0.2_265)] bg-[oklch(0.55_0.2_265_/_0.12)]'
                     : 'border-[oklch(0.25_0.03_260)] text-[oklch(0.58_0.02_260)]'
                 }`}
@@ -498,6 +521,11 @@ export function ResearchPanel() {
             placeholder="写一句可检验的命题，例如：趋势中高成交量突破更容易延续，目标是降低回撤..."
             className="w-full h-16 bg-[oklch(0.11_0.02_260)] border border-[oklch(0.25_0.03_260)] text-[oklch(0.85_0.01_260)] font-display text-[11px] p-2 resize-none focus:border-[oklch(0.72_0.19_155)] focus:outline-none"
           />
+          {isFirstRunLocked && (
+            <p className="font-display text-[9px] text-[oklch(0.82_0.15_85)]">
+              首轮引导锁定：当前仅支持「单因子 + 稳健目标」命题。
+            </p>
+          )}
           <button
             onClick={createThesisFromForm}
             disabled={!thesisHypothesis.trim()}
@@ -585,12 +613,22 @@ export function ResearchPanel() {
                         <button
                           key={option.key}
                           onClick={() => reviewThesis(thesis.id, option.key, `${option.label}：来自命题工作台裁决`)}
-                          className="font-pixel text-[6px] py-1 border border-[oklch(0.75_0.12_200_/_0.45)] text-[oklch(0.75_0.12_200)]"
+                          disabled={isFirstRunLocked}
+                          className={`font-pixel text-[6px] py-1 border ${
+                            isFirstRunLocked
+                              ? 'border-[oklch(0.22_0.025_260)] text-[oklch(0.35_0.02_260)] bg-[oklch(0.15_0.02_260)] cursor-not-allowed'
+                              : 'border-[oklch(0.75_0.12_200_/_0.45)] text-[oklch(0.75_0.12_200)]'
+                          }`}
                         >
                           {option.label}
                         </button>
                       ))}
                     </div>
+                  ) : null}
+                  {thesis.status === 'needs_review' && isFirstRunLocked ? (
+                    <p className="font-display text-[9px] text-[oklch(0.82_0.15_85)]">
+                      首轮引导中：请使用上方脚本按钮完成推荐裁决。
+                    </p>
                   ) : null}
                 </div>
               );
@@ -686,6 +724,13 @@ export function ResearchPanel() {
       {/* New Task */}
       <div>
         <p className="font-pixel text-[8px] text-[oklch(0.82_0.15_85)] mb-2">📝 发起新研究</p>
+        {isFirstRunLocked && (
+          <div className="mb-2 border border-[oklch(0.82_0.15_85_/_0.4)] bg-[oklch(0.82_0.15_85_/_0.08)] px-2.5 py-2">
+            <p className="font-display text-[10px] text-[oklch(0.82_0.15_85)]">
+              首轮引导锁定：仅开放当前推荐的任务分支，减少误操作。
+            </p>
+          </div>
+        )}
 
         {idleResearchers.length === 0 ? (
           <div className="border-2 border-dashed border-[oklch(0.25_0.03_260)] p-4 text-center">
@@ -695,6 +740,10 @@ export function ResearchPanel() {
           <div className="space-y-2">
             {idleResearchers.map(r => {
               const isRecommendedOwner = isGuidedMode && Boolean(guidedRecommendedTask) && r.id === leadIdleResearcher?.id;
+              const strictTaskLocked = isFirstRunLocked && !guidedRecommendedTask;
+              const ownerLocked = isFirstRunLocked && Boolean(guidedRecommendedTask) && !isRecommendedOwner;
+              const singleAllowed = !strictTaskLocked && !ownerLocked && (!isFirstRunLocked || guidedRecommendedTask === 'single_factor');
+              const multiAllowed = !strictTaskLocked && !ownerLocked && canStartMulti && (!isFirstRunLocked || guidedRecommendedTask === 'multi_factor');
               return (
                 <div
                   key={r.id}
@@ -717,12 +766,20 @@ export function ResearchPanel() {
                         引导推荐
                       </span>
                     )}
+                    {ownerLocked && (
+                      <span className="font-pixel text-[6px] px-1.5 py-1 border border-[oklch(0.22_0.025_260)] bg-[oklch(0.15_0.02_260)] text-[oklch(0.45_0.02_260)]">
+                        首轮锁定
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setSelectedResearcherId(r.id); setView('single_factor'); }}
+                      disabled={!singleAllowed}
                       className={`flex-1 font-pixel text-[7px] py-2 border-2 transition-all ${
-                        isRecommendedOwner && guidedRecommendedTask === 'single_factor'
+                        !singleAllowed
+                          ? 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.3_0.02_260)] border-[oklch(0.2_0.02_260)] cursor-not-allowed'
+                          : isRecommendedOwner && guidedRecommendedTask === 'single_factor'
                           ? 'bg-[oklch(0.82_0.15_85_/_0.2)] text-[oklch(0.9_0.08_85)] border-[oklch(0.82_0.15_85)]'
                           : 'bg-[oklch(0.55_0.2_265_/_0.15)] text-[oklch(0.55_0.2_265)] border-[oklch(0.55_0.2_265_/_0.3)] hover:bg-[oklch(0.55_0.2_265_/_0.25)]'
                       }`}
@@ -731,14 +788,14 @@ export function ResearchPanel() {
                     </button>
                     <button
                       onClick={() => { setSelectedResearcherId(r.id); setView('multi_factor'); }}
+                      disabled={!multiAllowed}
                       className={`flex-1 font-pixel text-[7px] py-2 border-2 transition-all ${
-                        canStartMulti
+                        multiAllowed
                           ? isRecommendedOwner && guidedRecommendedTask === 'multi_factor'
                             ? 'bg-[oklch(0.82_0.15_85_/_0.2)] text-[oklch(0.9_0.08_85)] border-[oklch(0.82_0.15_85)]'
                             : 'bg-[oklch(0.72_0.19_155_/_0.15)] text-[oklch(0.72_0.19_155)] border-[oklch(0.72_0.19_155_/_0.3)] hover:bg-[oklch(0.72_0.19_155_/_0.25)]'
                           : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.3_0.02_260)] border-[oklch(0.2_0.02_260)] cursor-not-allowed'
                       }`}
-                      disabled={!canStartMulti}
                     >
                       🧬 多因子合成
                     </button>

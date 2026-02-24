@@ -55,6 +55,7 @@ export { getDecisionOptions } from './game/decisions';
 
 type ThesisFinalOutcome = Extract<ThesisStatus, 'passed' | 'failed' | 'parked' | 'adopted' | 'hold' | 'rejected'>;
 type QuarterAdvanceReason = 'manual' | 'task_complete' | 'review';
+const FIRST_RUN_FINAL_STATUSES: ThesisStatus[] = ['passed', 'failed', 'parked', 'adopted', 'hold', 'rejected'];
 
 interface CreateThesisInput {
   type: ThesisType;
@@ -172,6 +173,15 @@ const findFailurePatternHint = (
     if (shared) return card;
   }
   return null;
+};
+
+const isFirstRunCompleted = (state: GameState): boolean => {
+  const hasProjectConfig = Boolean(state.projectConfig);
+  const hasCreatedThesis = state.theses.length > 0;
+  const hasLaunchedThesis = state.theses.some(item => Boolean(item.linkedTaskId));
+  const hasVerdict = state.theses.some(item => FIRST_RUN_FINAL_STATUSES.includes(item.status));
+  const hasReviewedLearningCard = state.learningCards.some(item => item.reviewed);
+  return hasProjectConfig && hasCreatedThesis && hasLaunchedThesis && hasVerdict && hasReviewedLearningCard;
 };
 
 const buildLearningCard = (
@@ -371,8 +381,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [addNotification]);
 
   const setPlayMode = useCallback((mode: PlayMode) => {
-    setState(prev => ({ ...prev, playMode: mode }));
-  }, []);
+    let blocked = false;
+    setState(prev => {
+      if (mode === 'expert' && !isFirstRunCompleted(prev)) {
+        blocked = true;
+        return prev;
+      }
+      return { ...prev, playMode: mode };
+    });
+    if (blocked) {
+      addNotification('warning', '请先完成首轮引导', '完成“10分钟首局脚本”后，才会解锁专业直达模式。');
+    }
+  }, [addNotification]);
 
   const setInsightView = useCallback((mode: InsightViewMode) => {
     setState(prev => ({ ...prev, insightView: mode }));
