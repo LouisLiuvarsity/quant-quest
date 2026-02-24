@@ -1,85 +1,62 @@
 /*
  * TopHUD - Game status bar at the top
- * Shows: Company name, token balance, active tasks, PnL, notifications
- * Style: Dark glass panel with pixel accents
- * No day/turn system - real-time
+ * Shows: Company status, mission stage, key counters, notifications
  */
 
 import { useGame } from '@/contexts/GameContext';
 import { Bell } from 'lucide-react';
 import { useState } from 'react';
+import { buildMissionSnapshot } from './gameplayBlueprint';
 
 export function TopHUD() {
   const { state, setActivePanel } = useGame();
   const [showNotifs, setShowNotifs] = useState(false);
   const unreadCount = state.notifications.filter(n => !n.read).length;
+  const missionSnapshot = buildMissionSnapshot(state);
+  const completedStages = missionSnapshot.progress.filter(stage => stage.done).length;
 
   const creditsPercent = Math.max(0, Math.min(100, (state.credits / state.totalCredits) * 100));
   const creditsColor = creditsPercent > 50 ? 'oklch(0.72 0.19 155)' : creditsPercent > 20 ? 'oklch(0.82 0.15 85)' : 'oklch(0.63 0.22 25)';
 
-  const activeTasks = state.activeTasks.filter(task => task.status === 'running').length;
-  const waitingTasks = state.activeTasks.filter(task => task.status === 'paused').length;
-  const objective = !state.projectConfig
-    ? '先完成项目配置'
-    : state.factorCards.filter(f => f.status === 'passed').length < 2
-      ? '继续挖掘可通过因子'
-      : state.portfolioCards.filter(p => p.status === 'adopted').length === 0
-        ? '启动多因子合成'
-        : waitingTasks > 0
-          ? '处理CEO决策点'
-          : '扩充策略并持续优化';
+  const runningTasks = state.activeTasks.filter(task => task.status === 'running').length;
+  const waitingTasks = missionSnapshot.waitingTasks;
+  const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
+  const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
+  const liveStrategies = state.strategies.filter(s => s.status === 'live').length;
+  const oosUnlocked = state.portfolioCards.length > 0;
 
   return (
-    <header className="relative z-50 border-b border-[oklch(0.22_0.02_260)] bg-[oklch(0.07_0.012_260_/_0.92)] backdrop-blur-xl">
-      <div className="mx-auto w-full max-w-[1400px] px-3 sm:px-4 py-2.5">
-        <div className="flex items-center justify-between gap-3">
-          {/* Left: Company + Credits */}
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg border border-[oklch(0.28_0.03_260)] bg-[oklch(0.13_0.02_260)] text-sm">
-              🏢
-            </div>
+    <header className="relative z-50 border-b border-[oklch(0.22_0.02_260)] bg-[oklch(0.07_0.012_260_/_0.94)] backdrop-blur-xl">
+      <div className="mx-auto w-full max-w-[1700px] px-3 sm:px-4 py-2.5">
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="min-w-0 flex items-center gap-2.5">
+            <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg border border-[oklch(0.28_0.03_260)] bg-[oklch(0.13_0.02_260)] text-sm">🏢</div>
             <div className="min-w-0">
-              <h1 className="truncate font-display text-sm font-semibold text-[oklch(0.92_0.01_260)]">
-                {state.companyName}
-              </h1>
-              <p className="font-display text-[11px] text-[oklch(0.55_0.02_260)]">
-                {state.researchers.length} 名研究员
+              <h1 className="truncate font-display text-sm font-semibold text-[oklch(0.94_0.01_260)]">{state.companyName}</h1>
+              <p className="font-display text-[11px] text-[oklch(0.56_0.02_260)]">
+                {state.researchers.length} 名研究员 · {state.playMode === 'guided' ? '新手引导模式' : '专业直达模式'}
               </p>
             </div>
-
-            <div className="hidden md:block h-8 w-px bg-[oklch(0.22_0.025_260)]" />
-
-            <div className="hidden md:flex items-center gap-2 rounded-xl border border-[oklch(0.28_0.03_260)] bg-[oklch(0.12_0.02_260_/_0.8)] px-3 py-1.5">
-              <span className="text-sm animate-coin-spin">🪙</span>
-              <div>
-                <p className="font-mono-data text-sm font-semibold leading-tight" style={{ color: creditsColor }}>
-                  {state.credits >= 1_000_000 ? `${(state.credits / 1_000_000).toFixed(2)}M` : state.credits.toLocaleString()}
-                </p>
-                <div className="mt-1 h-1 w-24 rounded-full bg-[oklch(0.18_0.02_260)]">
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${creditsPercent}%`, backgroundColor: creditsColor }} />
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Center: quick counters */}
-          <div className="hidden lg:flex items-center gap-2">
-            {[
-              { label: '任务', value: activeTasks, color: 'oklch(0.55 0.2 265)' },
-              { label: '待决策', value: waitingTasks, color: 'oklch(0.82 0.15 85)' },
-              { label: '因子', value: state.factorCards.length, color: 'oklch(0.75 0.12 200)' },
-              { label: '组合', value: state.portfolioCards.length, color: 'oklch(0.72 0.19 155)' },
-              { label: 'P&L', value: `${state.totalPnl >= 0 ? '+' : ''}$${Math.round(state.totalPnl).toLocaleString()}`, color: state.totalPnl >= 0 ? 'oklch(0.72 0.19 155)' : 'oklch(0.63 0.22 25)' },
-            ].map(item => (
-              <div key={item.label} className="rounded-lg border border-[oklch(0.24_0.025_260)] bg-[oklch(0.12_0.02_260)] px-2.5 py-1 text-center">
-                <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] leading-none">{item.label}</p>
-                <p className="font-mono-data text-xs font-semibold mt-1 leading-none" style={{ color: item.color }}>{item.value}</p>
-              </div>
-            ))}
+          <div className="hidden lg:flex min-w-0 flex-1 justify-center px-2">
+            <button
+              onClick={() => setActivePanel(missionSnapshot.activeStage.panel)}
+              className="min-w-[300px] max-w-[620px] w-full rounded-xl border border-[oklch(0.28_0.03_260)] bg-[oklch(0.11_0.018_260_/_0.9)] px-3 py-2 text-left hover:border-[oklch(0.55_0.2_265)] transition-colors"
+            >
+              <p className="font-display text-[10px] text-[oklch(0.72_0.19_155)]">{missionSnapshot.activeStage.label}</p>
+              <p className="font-display text-[12px] font-semibold text-[oklch(0.92_0.01_260)] mt-0.5 truncate">{missionSnapshot.activeStage.goal}</p>
+            </button>
           </div>
 
-          {/* Right: Plan + Notifications */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActivePanel('research')}
+              className="hidden sm:inline-flex rounded-lg border border-[oklch(0.3_0.03_260)] bg-[oklch(0.12_0.02_260)] px-2.5 py-1.5 font-display text-[11px] font-semibold text-[oklch(0.68_0.02_260)] hover:border-[oklch(0.55_0.2_265)] hover:text-[oklch(0.9_0.02_260)] transition-colors"
+            >
+              阶段 {completedStages}/{missionSnapshot.progress.length}
+            </button>
+
             <button
               onClick={() => setActivePanel('subscription')}
               className={`rounded-lg border px-2.5 py-1.5 font-display text-[11px] font-semibold transition-all ${
@@ -142,13 +119,28 @@ export function TopHUD() {
             </div>
           </div>
         </div>
-        <div className="hidden sm:flex mt-2">
-          <button
-            onClick={() => setActivePanel('research')}
-            className="font-display text-xs text-[oklch(0.68_0.02_260)] border border-[oklch(0.26_0.03_260)] bg-[oklch(0.12_0.02_260)] px-3 py-1.5 rounded-lg hover:border-[oklch(0.55_0.2_265)] hover:text-[oklch(0.9_0.02_260)] transition-colors"
-          >
-            🎯 当前目标: {objective}{waitingTasks > 0 ? ` · 待决策 ${waitingTasks}` : ''}
-          </button>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {[
+            { label: '资金', value: state.credits >= 1_000_000 ? `${(state.credits / 1_000_000).toFixed(2)}M` : state.credits.toLocaleString(), color: creditsColor },
+            { label: '运行任务', value: runningTasks, color: 'oklch(0.55 0.2 265)' },
+            { label: '待决策', value: waitingTasks, color: 'oklch(0.82 0.15 85)' },
+            { label: '通过因子', value: passedFactors, color: 'oklch(0.75 0.12 200)' },
+            { label: '采纳组合', value: adoptedPortfolios, color: 'oklch(0.72 0.19 155)' },
+            { label: '实盘策略', value: liveStrategies, color: 'oklch(0.63 0.22 25)' },
+            { label: 'OOS', value: oosUnlocked ? '已解锁' : '未解锁', color: oosUnlocked ? 'oklch(0.72 0.19 155)' : 'oklch(0.82 0.15 85)' },
+            { label: 'P&L', value: `${state.totalPnl >= 0 ? '+' : ''}$${Math.round(state.totalPnl).toLocaleString()}`, color: state.totalPnl >= 0 ? 'oklch(0.72 0.19 155)' : 'oklch(0.63 0.22 25)' },
+          ].map(item => (
+            <div key={item.label} className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.24_0.025_260)] bg-[oklch(0.11_0.018_260)] px-2 py-1">
+              <span className="font-display text-[10px] text-[oklch(0.52_0.02_260)]">{item.label}</span>
+              <span className="font-mono-data text-[11px] font-semibold" style={{ color: item.color }}>
+                {item.value}
+              </span>
+            </div>
+          ))}
+          <div className="hidden md:block h-1 w-24 rounded-full bg-[oklch(0.18_0.02_260)] ml-1">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${creditsPercent}%`, backgroundColor: creditsColor }} />
+          </div>
         </div>
       </div>
     </header>

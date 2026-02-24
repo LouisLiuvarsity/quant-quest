@@ -178,13 +178,13 @@ export function OfficeScene() {
   };
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+    <div className="relative w-full h-full flex items-center justify-center overflow-hidden p-1 sm:p-2">
       {/* Vignette */}
       <div className="absolute inset-0 pointer-events-none z-20" style={{
-        background: 'radial-gradient(ellipse at center, transparent 50%, oklch(0.08 0.015 260 / 0.6) 100%)',
+        background: 'radial-gradient(ellipse at center, transparent 54%, oklch(0.07 0.012 260 / 0.52) 100%)',
       }} />
 
-      <div className="relative w-full h-full max-w-[1200px] max-h-[700px] mx-auto">
+      <div className="relative w-full h-full max-w-[1460px] max-h-[860px] mx-auto">
         <img
           src={OFFICE_BG}
           alt="Pixel Office"
@@ -235,59 +235,22 @@ export function OfficeScene() {
           </motion.div>
         ))}
 
-        {/* Office label */}
-        <div className="absolute top-3 right-4 z-10">
-          <div className="rounded-xl bg-[oklch(0.08_0.015_260_/_0.86)] border border-[oklch(0.28_0.03_260)] px-3 py-2 backdrop-blur-sm">
-            <p className="font-display text-xs font-semibold text-[oklch(0.86_0.01_260)]">
-              🏢 {state.companyName}
-            </p>
-            <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] mt-0.5">
-              研究员: {state.researchers.length}/6
-            </p>
+        <div className="absolute top-3 left-4 z-10">
+          <div className="rounded-xl bg-[oklch(0.08_0.015_260_/_0.84)] border border-[oklch(0.28_0.03_260)] px-3 py-1.5 backdrop-blur-sm">
+            <p className="font-display text-[10px] text-[oklch(0.82_0.15_85)]">🕹️ 点击研究员查看状态，点击空工位招聘</p>
           </div>
         </div>
 
-        {/* Quick hint + legend */}
-        <div className="absolute top-3 left-4 z-10 hidden md:block">
-          <div className="rounded-xl bg-[oklch(0.08_0.015_260_/_0.86)] border border-[oklch(0.28_0.03_260)] px-3 py-2 backdrop-blur-sm max-w-[270px]">
-            <p className="font-display text-[11px] font-semibold text-[oklch(0.82_0.15_85)]">🕹️ 交互提示</p>
-            <p className="font-display text-[10px] text-[oklch(0.58_0.02_260)] mt-1 leading-relaxed">
-              点击研究员看任务，点击空工位招聘。出现 🔀 状态时到研究面板处理决策。
-            </p>
-            <div className="flex gap-2 mt-2">
-              {[
-                { icon: '💤', label: '空闲', color: 'oklch(0.45 0.02 260)' },
-                { icon: '🔬', label: '研究中', color: 'oklch(0.55 0.2 265)' },
-                { icon: '🔀', label: '待决策', color: 'oklch(0.82 0.15 85)' },
-                { icon: '✅', label: '完成', color: 'oklch(0.72 0.19 155)' },
-              ].map(item => (
-                <span
-                  key={item.label}
-                  className="font-display text-[10px] px-1.5 py-1 rounded border"
-                  style={{ color: item.color, borderColor: `${item.color}80`, backgroundColor: `${item.color}10` }}
-                >
-                  {item.icon} {item.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Mini stats */}
-        <div className="absolute bottom-3 left-4 flex gap-2 z-10">
+        <div className="absolute bottom-3 right-4 z-10 hidden lg:flex items-center gap-1.5 rounded-xl border border-[oklch(0.26_0.03_260)] bg-[oklch(0.08_0.015_260_/_0.84)] px-2.5 py-1.5 backdrop-blur-sm">
           {[
-            { label: '因子', value: state.factorCards.length, color: 'oklch(0.55 0.2 265)', bg: 'oklch(0.55 0.2 265 / 0.08)' },
-            { label: '报告', value: state.reports.length, color: 'oklch(0.82 0.15 85)', bg: 'oklch(0.82 0.15 85 / 0.08)' },
-            { label: '策略', value: state.strategies.length, color: 'oklch(0.72 0.19 155)', bg: 'oklch(0.72 0.19 155 / 0.08)' },
-          ].map(stat => (
-            <div
-              key={stat.label}
-              className="rounded-xl border px-3 py-2 backdrop-blur-sm min-w-[66px]"
-              style={{ borderColor: stat.color, backgroundColor: stat.bg }}
-            >
-              <p className="font-display text-[10px]" style={{ color: stat.color }}>{stat.label}</p>
-              <p className="font-mono-data text-base font-bold text-[oklch(0.92_0.01_260)] leading-none mt-1">{stat.value}</p>
-            </div>
+            { icon: '💤', label: '空闲', color: 'oklch(0.45 0.02 260)' },
+            { icon: '🔬', label: '研究中', color: 'oklch(0.55 0.2 265)' },
+            { icon: '🔀', label: '待决策', color: 'oklch(0.82 0.15 85)' },
+            { icon: '✅', label: '完成', color: 'oklch(0.72 0.19 155)' },
+          ].map(item => (
+            <span key={item.label} className="font-display text-[10px]" style={{ color: item.color }}>
+              {item.icon} {item.label}
+            </span>
           ))}
         </div>
       </div>

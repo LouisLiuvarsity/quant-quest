@@ -18,14 +18,28 @@ const ACTIONS = [
 ];
 
 export function BottomToolbar() {
-  const { activePanel, setActivePanel } = useGame();
+  const { activePanel, setActivePanel, state } = useGame();
+  const waitingTasks = state.activeTasks.filter(task => task.status === 'paused').length;
+  const draftStrategies = state.strategies.filter(strategy => strategy.status === 'draft').length;
+  const liveStrategies = state.strategies.filter(strategy => strategy.status === 'live').length;
+  const unreadReports = state.reports.length;
+
+  const badgeValue = (panelId: string): number => {
+    if (panelId === 'research') return waitingTasks;
+    if (panelId === 'strategy') return draftStrategies;
+    if (panelId === 'report-library') return unreadReports;
+    if (panelId === 'live') return liveStrategies;
+    return 0;
+  };
 
   return (
-    <div className="relative border-t border-[oklch(0.25_0.03_260)] bg-[oklch(0.08_0.015_260_/_0.96)] px-2 py-2.5 pb-3" style={{ zIndex: 60 }}>
-      <div className="mx-auto w-full max-w-[980px] flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-0.5">
+    <div className="relative border-t border-[oklch(0.22_0.02_260)] bg-[oklch(0.075_0.013_260_/_0.96)] px-2 py-2.5" style={{ zIndex: 60 }}>
+      <div className="mx-auto w-full max-w-[1080px] rounded-2xl border border-[oklch(0.24_0.025_260)] bg-[oklch(0.1_0.017_260_/_0.9)] px-1.5 py-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-0.5">
         {ACTIONS.map(action => {
           const Icon = action.icon;
           const isActive = activePanel === action.id;
+          const badge = badgeValue(action.id);
 
           return (
             <button
@@ -34,28 +48,31 @@ export function BottomToolbar() {
                 e.stopPropagation();
                 setActivePanel(isActive ? null : action.id);
               }}
-              className={`min-w-[74px] sm:min-w-[92px] shrink-0 rounded-xl border px-2.5 sm:px-3 py-2 transition-all duration-150 select-none ${
+              className={`min-w-[84px] sm:min-w-[120px] shrink-0 rounded-xl border px-2.5 sm:px-3 py-2 transition-all duration-150 select-none ${
                 isActive
-                  ? 'bg-[oklch(0.18_0.03_260)] -translate-y-0.5'
-                  : 'bg-[oklch(0.12_0.02_260)] hover:bg-[oklch(0.16_0.02_260)]'
+                  ? 'bg-[oklch(0.17_0.028_260)] -translate-y-0.5'
+                  : 'bg-[oklch(0.12_0.02_260)] hover:bg-[oklch(0.15_0.02_260)]'
               }`}
               style={{
                 borderColor: isActive ? action.color : 'oklch(0.28 0.03 260)',
                 boxShadow: isActive ? `0 0 10px ${action.color}35` : 'none',
               }}
             >
-              <div className="flex flex-col items-center gap-1">
-                <Icon size={16} style={{ color: isActive ? action.color : 'oklch(0.62 0.02 260)' }} />
-                <span
-                  className="font-display text-[10px] font-semibold leading-none"
-                  style={{ color: isActive ? action.color : 'oklch(0.58 0.02 260)' }}
-                >
+              <div className="flex items-center justify-center gap-1.5">
+                <Icon size={15} style={{ color: isActive ? action.color : 'oklch(0.62 0.02 260)' }} />
+                <span className="font-display text-[10px] font-semibold leading-none" style={{ color: isActive ? action.color : 'oklch(0.58 0.02 260)' }}>
                   {action.label}
                 </span>
+                {badge > 0 && (
+                  <span className="min-w-4 h-4 rounded-full bg-[oklch(0.63_0.22_25)] px-1 font-mono-data text-[10px] text-white flex items-center justify-center">
+                    {badge}
+                  </span>
+                )}
               </div>
             </button>
           );
         })}
+        </div>
       </div>
     </div>
   );
