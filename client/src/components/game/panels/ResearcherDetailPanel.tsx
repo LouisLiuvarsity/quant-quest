@@ -165,6 +165,32 @@ export function ResearcherDetailPanel() {
               {activeTask.overallProgress}%
             </span>
           </div>
+          <div className="grid grid-cols-3 gap-1.5 mt-2">
+            {[
+              { label: '质量', value: activeTask.qualityScore, color: 'oklch(0.75 0.12 200)' },
+              { label: '风险', value: activeTask.riskScore, color: 'oklch(0.82 0.15 85)' },
+              { label: '效率', value: activeTask.efficiencyScore, color: 'oklch(0.72 0.19 155)' },
+            ].map(metric => (
+              <div key={metric.label} className="bg-[oklch(0.1_0.015_260)] border border-[oklch(0.22_0.025_260)] p-1.5">
+                <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">{metric.label}</p>
+                <p className="font-mono-data text-[10px] font-bold mt-0.5" style={{ color: metric.color }}>{metric.value}</p>
+                <div className="mt-1 h-1 bg-[oklch(0.16_0.02_260)] border border-[oklch(0.2_0.02_260)]">
+                  <div className="h-full" style={{ width: `${metric.value}%`, backgroundColor: metric.color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {activeTask.decisionHistory.length > 0 && (
+            <div className="mt-2 p-2 bg-[oklch(0.1_0.015_260)] border border-[oklch(0.22_0.025_260)]">
+              <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] mb-1">最近决策</p>
+              <p className="font-display text-[10px] text-[oklch(0.8_0.01_260)]">
+                {activeTask.decisionHistory[activeTask.decisionHistory.length - 1].stepId} · {activeTask.decisionHistory[activeTask.decisionHistory.length - 1].optionLabel}
+              </p>
+              <p className="font-display text-[9px] text-[oklch(0.5_0.02_260)] mt-0.5">
+                {activeTask.decisionHistory[activeTask.decisionHistory.length - 1].summary}
+              </p>
+            </div>
+          )}
           <button
             onClick={handleViewActiveTask}
             className="w-full mt-2 font-pixel text-[7px] py-2 bg-[oklch(0.14_0.02_260)] text-[oklch(0.7_0.02_260)] border-2 border-[oklch(0.25_0.03_260)] hover:bg-[oklch(0.18_0.02_260)] transition-all"

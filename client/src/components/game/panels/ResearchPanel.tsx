@@ -5,7 +5,7 @@
  * Interactive decision points (🔀) pause for CEO input
  */
 
-import { useGame, SINGLE_FACTOR_STEPS, MULTI_FACTOR_STEPS, KLINE_PERIODS, FACTOR_TYPES, UNIVERSES, TOKEN_COSTS, type ResearchTask, type SingleFactorConfig, type MultiFactorConfig, type ProjectConfig } from '@/contexts/GameContext';
+import { useGame, SINGLE_FACTOR_STEPS, MULTI_FACTOR_STEPS, KLINE_PERIODS, FACTOR_TYPES, UNIVERSES, TOKEN_COSTS, getDecisionOptions, type ResearchTask, type SingleFactorConfig, type MultiFactorConfig, type ProjectConfig } from '@/contexts/GameContext';
 import { useState, useEffect, useRef } from 'react';
 
 // --- Project Config Setup (Step 0) ---
@@ -417,10 +417,19 @@ function TaskMonitor({ task }: { task: ResearchTask }) {
   const steps = task.type === 'single_factor' ? SINGLE_FACTOR_STEPS : MULTI_FACTOR_STEPS;
   const currentStep = steps[task.currentStepIndex];
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const decisionOptions = currentStep ? getDecisionOptions(task.type, currentStep.id) : [];
+  const [selectedDecisionId, setSelectedDecisionId] = useState<string>('');
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [task.logs.length]);
+
+  useEffect(() => {
+    if (task.status !== 'paused') return;
+    if (decisionOptions.length === 0) return;
+    if (decisionOptions.some(option => option.id === selectedDecisionId)) return;
+    setSelectedDecisionId(decisionOptions[1]?.id || decisionOptions[0].id);
+  }, [task.status, task.currentStepIndex, task.type, decisionOptions, selectedDecisionId]);
 
   const handleViewReport = () => {
     const report = state.reports.find(r => r.taskId === task.id);
@@ -430,41 +439,54 @@ function TaskMonitor({ task }: { task: ResearchTask }) {
     }
   };
 
+  const selectedOption = decisionOptions.find(option => option.id === selectedDecisionId);
+
+  const profileCards = [
+    { key: 'quality', label: '质量', value: task.qualityScore, color: 'oklch(0.75 0.12 200)' },
+    { key: 'risk', label: '风险', value: task.riskScore, color: 'oklch(0.82 0.15 85)' },
+    { key: 'efficiency', label: '效率', value: task.efficiencyScore, color: 'oklch(0.72 0.19 155)' },
+  ];
+
+  const statusText = task.status === 'paused'
+    ? '🔀 等待决策'
+    : task.status === 'completed'
+      ? '✅ 完成'
+      : '⏳ 运行中';
+
+  const statusClass = task.status === 'paused'
+    ? 'text-[oklch(0.82_0.15_85)] animate-pulse'
+    : task.status === 'completed'
+      ? 'text-[oklch(0.72_0.19_155)]'
+      : 'text-[oklch(0.55_0.2_265)]';
+
   return (
     <div className="border-2 border-[oklch(0.25_0.03_260)] bg-[oklch(0.1_0.015_260)] p-3 space-y-3">
-      {/* Task header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-pixel text-[8px] text-[oklch(0.82_0.15_85)]">
             {task.type === 'single_factor' ? '🔬 因子挖掘' : '🧬 多因子合成'}
           </p>
-          <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)]">
-            {state.researchers.find(r => r.id === task.researcherId)?.skin.name}
+          <p className="font-display text-[11px] text-[oklch(0.8_0.01_260)] mt-0.5">
+            {state.researchers.find(r => r.id === task.researcherId)?.skin.name} · Step {task.currentStepIndex + 1}/{steps.length}
+          </p>
+          <p className="font-display text-[10px] text-[oklch(0.52_0.02_260)] mt-1 leading-relaxed">
+            {currentStep?.id} {currentStep?.name}：{currentStep?.description}
           </p>
         </div>
-        <div className="text-right">
-          <p className="font-mono-data text-[10px] text-[oklch(0.55_0.2_265)]">
+        <div className="text-right shrink-0">
+          <p className="font-mono-data text-[11px] text-[oklch(0.55_0.2_265)]">
             🪙 {(task.tokenCost / 1000).toFixed(0)}K
           </p>
-          <p className={`font-pixel text-[6px] ${
-            task.status === 'paused' ? 'text-[oklch(0.82_0.15_85)] animate-pulse' :
-            task.status === 'completed' ? 'text-[oklch(0.72_0.19_155)]' :
-            'text-[oklch(0.55_0.2_265)]'
-          }`}>
-            {task.status === 'paused' ? '🔀 等待决策' : task.status === 'completed' ? '✅ 完成' : '⏳ 运行中'}
+          <p className={`font-pixel text-[6px] ${statusClass}`}>
+            {statusText}
           </p>
         </div>
       </div>
 
-      {/* Step progress bar */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <span className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">
-            Step {task.currentStepIndex + 1}/{steps.length}
-          </span>
-          <span className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">
-            {currentStep?.name}
-          </span>
+          <span className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">工作流进度</span>
+          <span className="font-mono-data text-[10px] text-[oklch(0.78_0.03_260)]">{task.overallProgress}%</span>
         </div>
         <div className="flex gap-0.5">
           {steps.map((step, i) => (
@@ -476,25 +498,53 @@ function TaskMonitor({ task }: { task: ResearchTask }) {
                 backgroundColor: i < task.currentStepIndex
                   ? 'oklch(0.55 0.2 265)'
                   : i === task.currentStepIndex
-                  ? task.status === 'paused' ? 'oklch(0.82 0.15 85)' : 'oklch(0.55 0.2 265 / 0.5)'
-                  : 'oklch(0.15 0.02 260)',
+                    ? task.status === 'paused' ? 'oklch(0.82 0.15 85)' : 'oklch(0.55 0.2 265 / 0.5)'
+                    : 'oklch(0.15 0.02 260)',
               }}
             />
           ))}
         </div>
       </div>
 
-      {/* Live logs */}
-      <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] max-h-32 overflow-y-auto custom-scrollbar">
+      <div className="grid grid-cols-3 gap-2">
+        {profileCards.map(profile => (
+          <div key={profile.key} className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.08_0.015_260)] p-2">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)] mb-1">{profile.label}</p>
+            <p className="font-mono-data text-[11px] font-bold mb-1" style={{ color: profile.color }}>{profile.value}</p>
+            <div className="h-1.5 bg-[oklch(0.16_0.02_260)] border border-[oklch(0.2_0.02_260)]">
+              <div className="h-full" style={{ width: `${profile.value}%`, backgroundColor: profile.color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {task.decisionHistory.length > 0 && (
+        <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.09_0.015_260)] p-2">
+          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] mb-1.5">最近决策</p>
+          <div className="space-y-1">
+            {task.decisionHistory.slice(-2).map(item => (
+              <div key={`${item.stepId}-${item.timestamp}`} className="flex items-start justify-between gap-2">
+                <span className="font-display text-[10px] text-[oklch(0.72_0.19_155)]">{item.stepId} · {item.optionLabel}</span>
+                <span className="font-display text-[9px] text-[oklch(0.5_0.02_260)] text-right">{item.summary}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] max-h-36 overflow-y-auto custom-scrollbar">
         <div className="p-2 space-y-0.5">
-          {task.logs.slice(-12).map((log, i) => (
+          {task.logs.slice(-14).map((log, i) => (
             <div key={i} className="flex gap-2">
               <span className="font-mono-data text-[8px] text-[oklch(0.35_0.02_260)] shrink-0">{log.timestamp}</span>
               <span className={`font-display text-[10px] leading-relaxed ${
-                log.type === 'success' ? 'text-[oklch(0.72_0.19_155)]' :
-                log.type === 'warning' ? 'text-[oklch(0.82_0.15_85)]' :
-                log.type === 'decision' ? 'text-[oklch(0.82_0.15_85)] font-semibold animate-pulse' :
-                'text-[oklch(0.6_0.02_260)]'
+                log.type === 'success'
+                  ? 'text-[oklch(0.72_0.19_155)]'
+                  : log.type === 'warning'
+                    ? 'text-[oklch(0.82_0.15_85)]'
+                    : log.type === 'decision'
+                      ? 'text-[oklch(0.82_0.15_85)] font-semibold'
+                      : 'text-[oklch(0.6_0.02_260)]'
               }`}>
                 {log.message}
               </span>
@@ -504,26 +554,49 @@ function TaskMonitor({ task }: { task: ResearchTask }) {
         </div>
       </div>
 
-      {/* Decision point action */}
       {task.status === 'paused' && (
-        <div className="border-2 border-[oklch(0.82_0.15_85_/_0.4)] bg-[oklch(0.82_0.15_85_/_0.05)] p-3">
-          <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)] mb-2">
-            🔀 CEO 决策点: {currentStep?.name}
+        <div className="border-2 border-[oklch(0.82_0.15_85_/_0.45)] bg-[oklch(0.82_0.15_85_/_0.05)] p-3 space-y-2.5">
+          <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">
+            🔀 CEO 决策点：{currentStep?.name}
           </p>
-          <p className="font-display text-[10px] text-[oklch(0.6_0.02_260)] mb-3 leading-relaxed">
-            {currentStep?.description}
+          <p className="font-display text-[10px] text-[oklch(0.62_0.02_260)] leading-relaxed">
+            选择不同策略会改变后续研究成本、速度与结果风格。
           </p>
+          <div className="space-y-1.5">
+            {decisionOptions.map(option => {
+              const isSelected = option.id === selectedDecisionId;
+              const costPct = Math.round(option.impact.costMultiplier * 100);
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => setSelectedDecisionId(option.id)}
+                  className={`w-full text-left border-2 px-2.5 py-2 transition-all ${
+                    isSelected
+                      ? 'border-[oklch(0.82_0.15_85)] bg-[oklch(0.82_0.15_85_/_0.12)]'
+                      : 'border-[oklch(0.3_0.03_260)] bg-[oklch(0.14_0.02_260)] hover:border-[oklch(0.5_0.04_260)]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`font-display text-xs font-semibold ${isSelected ? 'text-[oklch(0.9_0.08_85)]' : 'text-[oklch(0.82_0.02_260)]'}`}>{option.label}</span>
+                    <span className="font-mono-data text-[9px] text-[oklch(0.55_0.02_260)]">
+                      质{option.impact.quality >= 0 ? '+' : ''}{option.impact.quality} 风{option.impact.risk >= 0 ? '+' : ''}{option.impact.risk} 速{option.impact.efficiency >= 0 ? '+' : ''}{option.impact.efficiency} 成本{costPct >= 0 ? '+' : ''}{costPct}%
+                    </span>
+                  </div>
+                  <p className="font-display text-[10px] text-[oklch(0.55_0.02_260)] mt-1">{option.description}</p>
+                </button>
+              );
+            })}
+          </div>
           <button
-            onClick={() => resumeTask(task.id)}
+            onClick={() => resumeTask(task.id, { optionId: selectedOption?.id })}
             className="w-full font-pixel text-[8px] py-2.5 bg-[oklch(0.82_0.15_85)] text-[oklch(0.12_0.02_260)] border-2 border-[oklch(0.88_0.16_85)] hover:brightness-110 transition-all"
             style={{ boxShadow: 'inset -2px -2px 0 rgba(0,0,0,0.2), inset 2px 2px 0 rgba(255,255,255,0.2)' }}
           >
-            ✅ 确认并继续
+            ✅ 应用决策并继续
           </button>
         </div>
       )}
 
-      {/* Completed action */}
       {task.status === 'completed' && (
         <button
           onClick={handleViewReport}
@@ -545,6 +618,16 @@ export function ResearchPanel() {
   const idleResearchers = state.researchers.filter(r => r.status === 'idle');
   const activeTasks = state.activeTasks.filter(t => t.status !== 'completed');
   const completedTasks = state.activeTasks.filter(t => t.status === 'completed').slice(0, 5);
+  const waitingTasks = state.activeTasks.filter(t => t.status === 'paused').length;
+  const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
+  const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
+  const stageHint = !state.projectConfig
+    ? '先完成项目配置，再启动第一条单因子研究链路。'
+    : passedFactors < 2
+      ? '当前目标：继续挖掘并通过至少 2 个因子，然后进入多因子合成。'
+      : adoptedPortfolios === 0
+        ? '当前目标：发起多因子合成，产出可部署组合。'
+        : '当前目标：扩充组合池并持续优化研究画像。';
 
   if (!state.projectConfig && view === 'main') {
     return <ProjectConfigSetup onSave={setProjectConfig} />;
@@ -564,6 +647,46 @@ export function ResearchPanel() {
 
   return (
     <div className="p-4 space-y-4">
+      <div
+        className="border-2 border-[oklch(0.35_0.04_260)] p-3.5"
+        style={{ background: 'linear-gradient(135deg, oklch(0.13 0.025 260), oklch(0.11 0.02 260))' }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="font-pixel text-[8px] text-[oklch(0.82_0.15_85)]">🧭 研究指挥台</p>
+            <p className="font-display text-[11px] text-[oklch(0.6_0.02_260)] mt-1 leading-relaxed">{stageHint}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">待处理决策</p>
+            <p className={`font-mono-data text-sm font-bold ${waitingTasks > 0 ? 'text-[oklch(0.82_0.15_85)]' : 'text-[oklch(0.72_0.19_155)]'}`}>{waitingTasks}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.22_0.025_260)] p-2 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">通过因子</p>
+            <p className="font-mono-data text-sm font-bold text-[oklch(0.55_0.2_265)]">{passedFactors}</p>
+          </div>
+          <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.22_0.025_260)] p-2 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">采纳组合</p>
+            <p className="font-mono-data text-sm font-bold text-[oklch(0.72_0.19_155)]">{adoptedPortfolios}</p>
+          </div>
+          <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.22_0.025_260)] p-2 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">活跃任务</p>
+            <p className="font-mono-data text-sm font-bold text-[oklch(0.82_0.15_85)]">{activeTasks.length}</p>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {['招募研究员', '单因子挖掘', '决策推进', '多因子合成', '部署策略'].map((item, index) => (
+            <span
+              key={item}
+              className="font-pixel text-[6px] px-2 py-1 border border-[oklch(0.28_0.03_260)] bg-[oklch(0.15_0.02_260)] text-[oklch(0.6_0.02_260)]"
+            >
+              {index + 1}. {item}
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* Project Config Summary */}
       {state.projectConfig && (
         <div className="border-2 border-[oklch(0.25_0.03_260)] bg-[oklch(0.1_0.015_260)] p-3">

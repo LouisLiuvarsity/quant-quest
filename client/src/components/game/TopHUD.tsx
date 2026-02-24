@@ -18,6 +18,18 @@ export function TopHUD() {
   const creditsColor = creditsPercent > 50 ? 'oklch(0.72 0.19 155)' : creditsPercent > 20 ? 'oklch(0.82 0.15 85)' : 'oklch(0.63 0.22 25)';
 
   const activeTasks = state.researchers.filter(r => r.status === 'researching').length;
+  const waitingTasks = state.activeTasks.filter(task => task.status === 'paused').length;
+  const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
+  const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
+  const objective = !state.projectConfig
+    ? '先完成项目配置'
+    : passedFactors < 2
+      ? '继续挖掘可通过因子'
+      : adoptedPortfolios === 0
+        ? '启动多因子合成'
+        : waitingTasks > 0
+          ? '处理CEO决策点'
+          : '扩充策略并持续优化';
 
   return (
     <div
@@ -73,34 +85,41 @@ export function TopHUD() {
         </div>
       </div>
 
-      {/* Center: Active Tasks & PnL */}
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Active tasks indicator */}
-        <div className="text-center">
-          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">TASKS</p>
-          <p className="font-mono-data text-sm font-bold text-[oklch(0.55_0.2_265)]">
-            {activeTasks > 0 && <span className="inline-block w-1.5 h-1.5 bg-[oklch(0.55_0.2_265)] animate-pulse mr-1 align-middle" />}
-            {activeTasks}
-          </p>
+      {/* Center: Active Tasks & Objective */}
+      <div className="hidden md:flex flex-col items-center gap-1">
+        <div className="flex items-center gap-3 lg:gap-4">
+          <div className="text-center">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">TASKS</p>
+            <p className="font-mono-data text-sm font-bold text-[oklch(0.55_0.2_265)]">
+              {activeTasks > 0 && <span className="inline-block w-1.5 h-1.5 bg-[oklch(0.55_0.2_265)] animate-pulse mr-1 align-middle" />}
+              {activeTasks}
+            </p>
+          </div>
+
+          <div className="h-5 w-px bg-[oklch(0.22_0.025_260)]" />
+
+          <div className="text-center">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">TOTAL P&L</p>
+            <p className={`font-mono-data text-sm font-bold ${state.totalPnl >= 0 ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'}`}>
+              {state.totalPnl >= 0 ? '+' : ''}${Math.round(state.totalPnl).toLocaleString()}
+            </p>
+          </div>
+
+          <div className="h-5 w-px bg-[oklch(0.22_0.025_260)]" />
+
+          <div className="text-center">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">FACTORS</p>
+            <p className="font-mono-data text-sm font-bold text-[oklch(0.75_0.12_200)]">
+              {state.factorCards.length}
+            </p>
+          </div>
         </div>
-
-        <div className="hidden sm:block h-5 w-px bg-[oklch(0.22_0.025_260)]" />
-
-        <div className="hidden sm:block text-center">
-          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">TOTAL P&L</p>
-          <p className={`font-mono-data text-sm font-bold ${state.totalPnl >= 0 ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'}`}>
-            {state.totalPnl >= 0 ? '+' : ''}${Math.round(state.totalPnl).toLocaleString()}
-          </p>
-        </div>
-
-        <div className="hidden sm:block h-5 w-px bg-[oklch(0.22_0.025_260)]" />
-
-        <div className="hidden sm:block text-center">
-          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] leading-none">FACTORS</p>
-          <p className="font-mono-data text-sm font-bold text-[oklch(0.75_0.12_200)]">
-            {state.factorCards.length}
-          </p>
-        </div>
+        <button
+          onClick={() => setActivePanel('research')}
+          className="font-display text-[10px] text-[oklch(0.7_0.02_260)] border border-[oklch(0.25_0.03_260)] bg-[oklch(0.12_0.02_260)] px-2.5 py-1 hover:border-[oklch(0.55_0.2_265)] hover:text-[oklch(0.88_0.02_260)] transition-colors"
+        >
+          🎯 当前目标: {objective}{waitingTasks > 0 ? ` · 待决策 ${waitingTasks}` : ''}
+        </button>
       </div>
 
       {/* Right: Plan + Notifications */}

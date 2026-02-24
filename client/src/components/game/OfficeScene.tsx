@@ -247,6 +247,32 @@ export function OfficeScene() {
           </div>
         </div>
 
+        {/* Quick hint + legend */}
+        <div className="absolute top-28 left-4 z-10 hidden md:block">
+          <div className="bg-[oklch(0.08_0.015_260_/_0.86)] border-2 border-[oklch(0.28_0.03_260)] px-3 py-2 backdrop-blur-sm max-w-[280px]">
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">🕹️ 办公室交互提示</p>
+            <p className="font-display text-[10px] text-[oklch(0.58_0.02_260)] mt-1 leading-relaxed">
+              点击研究员查看任务详情；点击空工位可快速招聘；出现 🔀 状态时前往研究面板处理 CEO 决策。
+            </p>
+            <div className="flex gap-2 mt-2">
+              {[
+                { icon: '💤', label: '空闲', color: 'oklch(0.45 0.02 260)' },
+                { icon: '🔬', label: '研究中', color: 'oklch(0.55 0.2 265)' },
+                { icon: '🔀', label: '待决策', color: 'oklch(0.82 0.15 85)' },
+                { icon: '✅', label: '完成', color: 'oklch(0.72 0.19 155)' },
+              ].map(item => (
+                <span
+                  key={item.label}
+                  className="font-pixel text-[6px] px-1.5 py-1 border"
+                  style={{ color: item.color, borderColor: `${item.color}80`, backgroundColor: `${item.color}10` }}
+                >
+                  {item.icon} {item.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Mini stats */}
         <div className="absolute bottom-3 left-4 flex gap-2 z-10">
           {[
