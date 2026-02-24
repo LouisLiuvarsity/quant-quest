@@ -64,6 +64,8 @@ interface StageProgressContext {
   passedFactors: number;
   adoptedPortfolios: number;
   liveStrategies: number;
+  passedTheses: number;
+  adoptedTheses: number;
 }
 
 const isStageDone = (stageKey: MissionStageKey, ctx: StageProgressContext): boolean => {
@@ -71,9 +73,9 @@ const isStageDone = (stageKey: MissionStageKey, ctx: StageProgressContext): bool
     case 'project_config':
       return ctx.hasProjectConfig;
     case 'single_factor_baseline':
-      return ctx.passedFactors >= 2;
+      return ctx.passedFactors >= 2 || ctx.passedTheses >= 2;
     case 'multi_factor_validation':
-      return ctx.adoptedPortfolios >= 1;
+      return ctx.adoptedPortfolios >= 1 || ctx.adoptedTheses >= 1;
     case 'strategy_deployment':
       return ctx.liveStrategies >= 1;
     case 'scale_and_optimize':
@@ -93,13 +95,18 @@ export const buildMissionSnapshot = (state: GameState): MissionSnapshot => {
   const passedFactors = state.factorCards.filter(card => card.status === 'passed').length;
   const adoptedPortfolios = state.portfolioCards.filter(card => card.status === 'adopted').length;
   const liveStrategies = state.strategies.filter(strategy => strategy.status === 'live').length;
-  const waitingTasks = state.activeTasks.filter(task => task.status === 'paused').length;
+  const waitingTasks = state.activeTasks.filter(task => task.status === 'paused').length
+    + state.theses.filter(thesis => thesis.status === 'needs_review').length;
+  const passedTheses = state.theses.filter(thesis => thesis.status === 'passed').length;
+  const adoptedTheses = state.theses.filter(thesis => thesis.status === 'adopted').length;
 
   const ctx: StageProgressContext = {
     hasProjectConfig: Boolean(state.projectConfig),
     passedFactors,
     adoptedPortfolios,
     liveStrategies,
+    passedTheses,
+    adoptedTheses,
   };
 
   const progress = STAGE_BLUEPRINT.map(stage => ({
@@ -140,17 +147,17 @@ export const buildAiCoachTips = (state: GameState): string[] => {
 
   if (passedFactors < 2) {
     return [
-      '用自然语言描述因子逻辑，先追求可解释而非复杂。',
-      '单因子优先目标：通过 2 个因子，形成多因子候选池。',
-      '若验证集表现断崖下降，先回看 IS 搜索范围是否过宽。',
+      '先创建单因子命题，再分配参数探索包与稳健性包。',
+      '命题的目标要明确：收益、回撤或稳健，不要混在一起。',
+      '若验证集表现断崖下降，优先补一条反例验证证据。',
     ];
   }
 
   if (adoptedPortfolios === 0) {
     return [
-      '先做因子去冗余，再选合成方式与权重方案。',
-      'M8 是 OOS 终极评估，跑完后不要回头调参。',
-      'M11 必须对比最优单因子，确认合成是否真的增益。',
+      '先创建组合命题并锁定 Blend Plan，再进入 OOS 审判。',
+      'OOS 审判券是稀缺资源，提交前先确认证据是否收敛。',
+      '终审后不要回调参数，保持结果可审计与可复现。',
     ];
   }
 

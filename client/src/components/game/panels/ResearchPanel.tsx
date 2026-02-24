@@ -5,860 +5,21 @@
  * Interactive decision points (🔀) pause for CEO input
  */
 
-import { useGame, SINGLE_FACTOR_STEPS, MULTI_FACTOR_STEPS, KLINE_PERIODS, FACTOR_TYPES, UNIVERSES, TOKEN_COSTS, getDecisionOptions, type ResearchTask, type SingleFactorConfig, type MultiFactorConfig, type ProjectConfig, type TaskDecisionOption, type TaskType } from '@/contexts/GameContext';
-import { useState, useEffect, useRef } from 'react';
-
-// --- Project Config Setup (Step 0) ---
-function ProjectConfigSetup({ onSave }: { onSave: (config: ProjectConfig) => void }) {
-  const [barSize, setBarSize] = useState('1d');
-  const [universe, setUniverse] = useState('crypto_top100');
-  const [splitMode, setSplitMode] = useState<'three_way' | 'two_way'>('three_way');
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="border-2 border-[oklch(0.82_0.15_85_/_0.3)] bg-[oklch(0.82_0.15_85_/_0.05)] p-3">
-        <p className="font-pixel text-[8px] text-[oklch(0.82_0.15_85)] mb-1">⚠️ 项目配置</p>
-        <p className="font-display text-[11px] text-[oklch(0.6_0.02_260)] leading-relaxed">
-          首次研究需要设定项目配置。此配置将被所有后续因子研究继承。
-        </p>
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
-          <div className="border border-[oklch(0.32_0.03_260)] bg-[oklch(0.14_0.02_260)] p-1.5">
-            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">作用 1</p>
-            <p className="font-display text-[9px] text-[oklch(0.75_0.01_260)] mt-0.5">统一回测口径</p>
-          </div>
-          <div className="border border-[oklch(0.32_0.03_260)] bg-[oklch(0.14_0.02_260)] p-1.5">
-            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">作用 2</p>
-            <p className="font-display text-[9px] text-[oklch(0.75_0.01_260)] mt-0.5">固定训练/验证分层</p>
-          </div>
-          <div className="border border-[oklch(0.32_0.03_260)] bg-[oklch(0.14_0.02_260)] p-1.5">
-            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">作用 3</p>
-            <p className="font-display text-[9px] text-[oklch(0.75_0.01_260)] mt-0.5">解锁任务指派</p>
-          </div>
-        </div>
-      </div>
-
-      {/* K-line Period */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] block mb-2">K线级别</label>
-        <div className="grid grid-cols-3 gap-1.5">
-          {KLINE_PERIODS.map(p => (
-            <button
-              key={p.value}
-              onClick={() => setBarSize(p.value)}
-              className={`font-display text-[11px] py-2 border-2 transition-all ${
-                barSize === p.value
-                  ? 'border-[oklch(0.55_0.2_265)] bg-[oklch(0.55_0.2_265_/_0.1)] text-[oklch(0.55_0.2_265)]'
-                  : 'border-[oklch(0.22_0.025_260)] text-[oklch(0.5_0.02_260)] hover:border-[oklch(0.35_0.03_260)]'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Universe */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] block mb-2">资产池</label>
-        <div className="space-y-1.5">
-          {UNIVERSES.map(u => (
-            <button
-              key={u.value}
-              onClick={() => setUniverse(u.value)}
-              className={`w-full text-left font-display text-[11px] px-3 py-2.5 border-2 transition-all ${
-                universe === u.value
-                  ? 'border-[oklch(0.55_0.2_265)] bg-[oklch(0.55_0.2_265_/_0.1)] text-[oklch(0.55_0.2_265)]'
-                  : 'border-[oklch(0.22_0.025_260)] text-[oklch(0.5_0.02_260)] hover:border-[oklch(0.35_0.03_260)]'
-              }`}
-            >
-              {u.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Data Split */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] block mb-2">数据切分</label>
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            onClick={() => setSplitMode('three_way')}
-            className={`font-display text-[11px] py-2.5 border-2 transition-all ${
-              splitMode === 'three_way'
-                ? 'border-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.1)] text-[oklch(0.72_0.19_155)]'
-                : 'border-[oklch(0.22_0.025_260)] text-[oklch(0.5_0.02_260)] hover:border-[oklch(0.35_0.03_260)]'
-            }`}
-          >
-            三段切分 (IS/VAL/OOS)
-          </button>
-          <button
-            onClick={() => setSplitMode('two_way')}
-            className={`font-display text-[11px] py-2.5 border-2 transition-all ${
-              splitMode === 'two_way'
-                ? 'border-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.1)] text-[oklch(0.72_0.19_155)]'
-                : 'border-[oklch(0.22_0.025_260)] text-[oklch(0.5_0.02_260)] hover:border-[oklch(0.35_0.03_260)]'
-            }`}
-          >
-            两段切分 (IS/TEST)
-          </button>
-        </div>
-        <div className="mt-2 space-y-1">
-          <div className="flex gap-1">
-            <div className="flex-1 h-3 bg-[oklch(0.55_0.2_265_/_0.3)] flex items-center justify-center">
-              <span className="font-pixel text-[5px] text-[oklch(0.55_0.2_265)]">IS 2020-01~2022-06</span>
-            </div>
-            <div className="flex-1 h-3 bg-[oklch(0.72_0.19_155_/_0.3)] flex items-center justify-center">
-              <span className="font-pixel text-[5px] text-[oklch(0.72_0.19_155)]">VAL 2022-06~2024-06</span>
-            </div>
-            {splitMode === 'three_way' && (
-              <div className="flex-1 h-3 bg-[oklch(0.82_0.15_85_/_0.3)] flex items-center justify-center">
-                <span className="font-pixel text-[5px] text-[oklch(0.82_0.15_85)]">OOS 2024-06~2026-01</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <button
-        onClick={() => onSave({
-          barSize,
-          universeFilter: UNIVERSES.find(u => u.value === universe)?.label || universe,
-          universeRebalance: '每月初',
-          splitMode,
-          isRange: '2020-01 ~ 2022-06',
-          valRange: '2022-06 ~ 2024-06',
-          oosRange: splitMode === 'three_way' ? '2024-06 ~ 2026-01' : 'N/A',
-          regimeCheck: { bull: 38, bear: 32, sideways: 30 },
-        })}
-        className="w-full font-pixel text-[9px] py-3 bg-[oklch(0.55_0.2_265)] text-white border-2 border-[oklch(0.65_0.22_265)] hover:brightness-110 transition-all"
-        style={{ boxShadow: 'inset -2px -2px 0 rgba(0,0,0,0.3), inset 2px 2px 0 rgba(255,255,255,0.15)' }}
-      >
-        ✅ 确认项目配置
-      </button>
-    </div>
-  );
-}
-
-// --- Single Factor Task Config ---
-function SingleFactorSetup({ researcherId, onBack }: { researcherId: string; onBack: () => void }) {
-  const { state, startSingleFactorTask, setActivePanel } = useGame();
-  const [factorType, setFactorType] = useState('momentum');
-  const [factorDescription, setFactorDescription] = useState('');
-  const [fwdPeriod, setFwdPeriod] = useState(5);
-
-  const estimatedTokens = TOKEN_COSTS.single_factor.base + TOKEN_COSTS.single_factor.perStep * SINGLE_FACTOR_STEPS.length;
-  const canAfford = state.credits >= estimatedTokens;
-  const researcher = state.researchers.find(r => r.id === researcherId);
-
-  const handleStart = () => {
-    if (!factorDescription.trim() || !canAfford) return;
-    const config: SingleFactorConfig = {
-      factorDescription: factorDescription.trim(),
-      factorType,
-      fwdPeriod,
-    };
-    startSingleFactorTask(researcherId, config);
-    setActivePanel(null);
-  };
-
-  return (
-    <div className="p-4 space-y-4">
-      <button onClick={onBack} className="font-pixel text-[7px] text-[oklch(0.5_0.02_260)] hover:text-[oklch(0.82_0.15_85)] transition-colors">
-        ← 返回
-      </button>
-
-      <div className="border-2 border-[oklch(0.55_0.2_265_/_0.3)] bg-[oklch(0.55_0.2_265_/_0.05)] p-3">
-        <p className="font-pixel text-[8px] text-[oklch(0.55_0.2_265)]">🔬 因子挖掘任务</p>
-        <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] mt-1">
-          研究员: {researcher?.skin.name} | {SINGLE_FACTOR_STEPS.length} 步工作流
-        </p>
-      </div>
-
-      {/* Factor Type */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] block mb-2">因子类型</label>
-        <div className="grid grid-cols-2 gap-1.5">
-          {FACTOR_TYPES.map(ft => (
-            <button
-              key={ft.value}
-              onClick={() => setFactorType(ft.value)}
-              className={`text-left px-2.5 py-2 border-2 transition-all ${
-                factorType === ft.value
-                  ? 'border-[oklch(0.55_0.2_265)] bg-[oklch(0.55_0.2_265_/_0.1)]'
-                  : 'border-[oklch(0.22_0.025_260)] hover:border-[oklch(0.35_0.03_260)]'
-              }`}
-            >
-              <p className={`font-display text-[11px] font-medium ${factorType === ft.value ? 'text-[oklch(0.55_0.2_265)]' : 'text-[oklch(0.7_0.02_260)]'}`}>
-                {ft.label}
-              </p>
-              <p className="font-display text-[9px] text-[oklch(0.45_0.02_260)]">{ft.desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Factor Description (Natural Language) */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] block mb-2">
-          因子描述 (自然语言)
-        </label>
-        <textarea
-          value={factorDescription}
-          onChange={(e) => setFactorDescription(e.target.value)}
-          placeholder="例如: 基于过去20日收盘价动量，计算价格相对于20日均线的偏离程度，偏离越大信号越强..."
-          className="w-full h-24 bg-[oklch(0.12_0.02_260)] border-2 border-[oklch(0.25_0.03_260)] text-[oklch(0.85_0.01_260)] font-display text-[11px] p-3 resize-none focus:border-[oklch(0.55_0.2_265)] focus:outline-none transition-colors placeholder:text-[oklch(0.35_0.02_260)]"
-        />
-        <p className="font-display text-[9px] text-[oklch(0.4_0.02_260)] mt-1">
-          Agent 会根据你的描述自动构造因子信号 (Step 4)
-        </p>
-      </div>
-
-      {/* Forward Period */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.55_0.2_265)] block mb-2">
-          预测窗口 (fwd_period)
-        </label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min={1}
-            max={30}
-            value={fwdPeriod}
-            onChange={(e) => setFwdPeriod(Number(e.target.value))}
-            className="flex-1 accent-[oklch(0.55_0.2_265)]"
-          />
-          <span className="font-mono-data text-sm font-bold text-[oklch(0.55_0.2_265)] w-10 text-center">
-            {fwdPeriod}
-          </span>
-        </div>
-        <p className="font-display text-[9px] text-[oklch(0.4_0.02_260)] mt-1">
-          预测未来 {fwdPeriod} 期收益率 | K线: {state.projectConfig?.barSize || '1d'}
-        </p>
-      </div>
-
-      {/* Token Cost Estimate */}
-      <div className="border-2 border-[oklch(0.28_0.03_260)] bg-[oklch(0.1_0.015_260)] p-3">
-        <div className="flex items-center justify-between">
-          <span className="font-pixel text-[7px] text-[oklch(0.45_0.02_260)]">预估消耗</span>
-          <span className="font-mono-data text-sm font-bold text-[oklch(0.82_0.15_85)]">
-            🪙 ~{(estimatedTokens / 1000).toFixed(0)}K
-          </span>
-        </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="font-pixel text-[7px] text-[oklch(0.45_0.02_260)]">当前余额</span>
-          <span className={`font-mono-data text-xs ${canAfford ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'}`}>
-            🪙 {(state.credits / 1_000_000).toFixed(2)}M
-          </span>
-        </div>
-      </div>
-
-      <button
-        onClick={handleStart}
-        disabled={!factorDescription.trim() || !canAfford}
-        className={`w-full font-pixel text-[9px] py-3 border-2 transition-all ${
-          factorDescription.trim() && canAfford
-            ? 'bg-[oklch(0.55_0.2_265)] text-white border-[oklch(0.65_0.22_265)] hover:brightness-110'
-            : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)] cursor-not-allowed'
-        }`}
-        style={{ boxShadow: factorDescription.trim() && canAfford ? 'inset -2px -2px 0 rgba(0,0,0,0.3), inset 2px 2px 0 rgba(255,255,255,0.15)' : 'none' }}
-      >
-        🚀 开始因子挖掘 ({SINGLE_FACTOR_STEPS.length} 步)
-      </button>
-    </div>
-  );
-}
-
-// --- Multi Factor Task Config ---
-function MultiFactorSetup({ researcherId, onBack }: { researcherId: string; onBack: () => void }) {
-  const { state, startMultiFactorTask, setActivePanel } = useGame();
-  const [selectedFactorIds, setSelectedFactorIds] = useState<string[]>([]);
-  const [blendMode, setBlendMode] = useState<'signal_blend' | 'position_blend'>('signal_blend');
-  const [weightMethod, setWeightMethod] = useState<'equal' | 'sharpe_weighted' | 'rolling'>('equal');
-
-  const passedFactors = state.factorCards.filter(f => f.status === 'passed');
-  const estimatedTokens = TOKEN_COSTS.multi_factor.base + TOKEN_COSTS.multi_factor.perStep * MULTI_FACTOR_STEPS.length;
-  const canAfford = state.credits >= estimatedTokens;
-  const hasThreeWaySplit = state.projectConfig?.splitMode === 'three_way';
-  const canStart = selectedFactorIds.length >= 2 && canAfford && hasThreeWaySplit;
-
-  const toggleFactor = (id: string) => {
-    setSelectedFactorIds(prev =>
-      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
-    );
-  };
-
-  const handleStart = () => {
-    if (!canStart) return;
-    const config: MultiFactorConfig = {
-      selectedFactorIds,
-      blendMode,
-      weightMethod,
-      correlationThreshold: 0.7,
-    };
-    startMultiFactorTask(researcherId, config);
-    setActivePanel(null);
-  };
-
-  return (
-    <div className="p-4 space-y-4">
-      <button onClick={onBack} className="font-pixel text-[7px] text-[oklch(0.5_0.02_260)] hover:text-[oklch(0.82_0.15_85)] transition-colors">
-        ← 返回
-      </button>
-
-      <div className="border-2 border-[oklch(0.72_0.19_155_/_0.3)] bg-[oklch(0.72_0.19_155_/_0.05)] p-3">
-        <p className="font-pixel text-[8px] text-[oklch(0.72_0.19_155)]">🧬 多因子合成任务</p>
-        <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] mt-1">
-          需要 ≥2 个已验证因子 + 三段切分 (IS/VAL/OOS) | {MULTI_FACTOR_STEPS.length} 步工作流
-        </p>
-      </div>
-
-      {!hasThreeWaySplit && (
-        <div className="border-2 border-[oklch(0.63_0.22_25_/_0.4)] bg-[oklch(0.63_0.22_25_/_0.08)] p-3">
-          <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">⚠️ 当前项目为两段切分</p>
-          <p className="font-display text-[10px] text-[oklch(0.72_0.02_260)] mt-1 leading-relaxed">
-            多因子任务会消费 OOS 终评，因此必须先切换到三段切分。请返回上一层，在项目配置里改为 IS/VAL/OOS 后再启动。
-          </p>
-        </div>
-      )}
-
-      {/* Select Factors */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.72_0.19_155)] block mb-2">
-          选择因子 ({selectedFactorIds.length} 已选)
-        </label>
-        {passedFactors.length < 2 ? (
-          <div className="border-2 border-[oklch(0.82_0.15_85_/_0.3)] bg-[oklch(0.82_0.15_85_/_0.05)] p-4 text-center">
-            <p className="font-display text-xs text-[oklch(0.82_0.15_85)]">
-              ⚠️ 需要至少 2 个已验证因子
-            </p>
-            <p className="font-display text-[10px] text-[oklch(0.5_0.02_260)] mt-1">
-              当前已验证: {passedFactors.length} 个
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
-            {passedFactors.map(fc => (
-              <button
-                key={fc.id}
-                onClick={() => toggleFactor(fc.id)}
-                className={`w-full text-left px-3 py-2 border-2 transition-all ${
-                  selectedFactorIds.includes(fc.id)
-                    ? 'border-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.1)]'
-                    : 'border-[oklch(0.22_0.025_260)] hover:border-[oklch(0.35_0.03_260)]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-[11px] text-[oklch(0.85_0.01_260)]">{fc.factorName}</span>
-                  <span className="font-mono-data text-[10px] text-[oklch(0.72_0.19_155)]">
-                    Sharpe {fc.valPerformance.medianSharpe.toFixed(2)}
-                  </span>
-                </div>
-                <p className="font-display text-[9px] text-[oklch(0.45_0.02_260)] mt-0.5 truncate">{fc.description}</p>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Blend Mode */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.72_0.19_155)] block mb-2">合成方式</label>
-        <div className="grid grid-cols-2 gap-1.5">
-          {[
-            { value: 'signal_blend' as const, label: '信号层合成', desc: '先合成信号再映射仓位' },
-            { value: 'position_blend' as const, label: '仓位层合成', desc: '各因子独立仓位再加权' },
-          ].map(mode => (
-            <button
-              key={mode.value}
-              onClick={() => setBlendMode(mode.value)}
-              className={`text-left px-2.5 py-2 border-2 transition-all ${
-                blendMode === mode.value
-                  ? 'border-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.1)]'
-                  : 'border-[oklch(0.22_0.025_260)] hover:border-[oklch(0.35_0.03_260)]'
-              }`}
-            >
-              <p className={`font-display text-[11px] font-medium ${blendMode === mode.value ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.7_0.02_260)]'}`}>
-                {mode.label}
-              </p>
-              <p className="font-display text-[9px] text-[oklch(0.45_0.02_260)]">{mode.desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Weight Method */}
-      <div>
-        <label className="font-pixel text-[7px] text-[oklch(0.72_0.19_155)] block mb-2">权重方案</label>
-        <div className="grid grid-cols-3 gap-1.5">
-          {[
-            { value: 'equal' as const, label: '等权' },
-            { value: 'sharpe_weighted' as const, label: '表现加权' },
-            { value: 'rolling' as const, label: '滚动动态' },
-          ].map(w => (
-            <button
-              key={w.value}
-              onClick={() => setWeightMethod(w.value)}
-              className={`font-display text-[11px] py-2 border-2 transition-all ${
-                weightMethod === w.value
-                  ? 'border-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.1)] text-[oklch(0.72_0.19_155)]'
-                  : 'border-[oklch(0.22_0.025_260)] text-[oklch(0.5_0.02_260)] hover:border-[oklch(0.35_0.03_260)]'
-              }`}
-            >
-              {w.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Token Cost */}
-      <div className="border-2 border-[oklch(0.28_0.03_260)] bg-[oklch(0.1_0.015_260)] p-3">
-        <div className="flex items-center justify-between">
-          <span className="font-pixel text-[7px] text-[oklch(0.45_0.02_260)]">预估消耗</span>
-          <span className="font-mono-data text-sm font-bold text-[oklch(0.82_0.15_85)]">
-            🪙 ~{(estimatedTokens / 1000).toFixed(0)}K
-          </span>
-        </div>
-      </div>
-
-      <button
-        onClick={handleStart}
-        disabled={!canStart}
-        className={`w-full font-pixel text-[9px] py-3 border-2 transition-all ${
-          canStart
-            ? 'bg-[oklch(0.72_0.19_155)] text-white border-[oklch(0.8_0.2_155)] hover:brightness-110'
-            : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)] cursor-not-allowed'
-        }`}
-      >
-        {hasThreeWaySplit ? `🧬 开始多因子合成 (${MULTI_FACTOR_STEPS.length} 步)` : '🧬 需先切换到三段切分'}
-      </button>
-    </div>
-  );
-}
-
-interface DecisionPointCopy {
-  headline: string;
-  what: string;
-  why: string;
-  pitfall: string;
-  cta: string;
-}
-
-const DECISION_POINT_COPIES: Record<string, DecisionPointCopy> = {
-  S4: {
-    headline: '描述你的交易直觉',
-    what: '把信号逻辑定义清楚，确保可复现。',
-    why: 'S4 决定了后续整个因子链路的方向与可解释性。',
-    pitfall: '常见误区是逻辑过于复杂，导致验证阶段难以复盘。',
-    cta: '生成因子草案并继续',
-  },
-  S10: {
-    headline: '训练集参数搜索',
-    what: '在 IS 里确定候选参数区间与优先方案。',
-    why: '这是筛选参数的唯一训练阶段，影响后续泛化质量。',
-    pitfall: '常见误区是搜索空间过宽，容易导致过拟合。',
-    cta: '确认 Top 参数方案',
-  },
-  S11: {
-    headline: '验证集独立检验',
-    what: '在 VAL 上检验 IS 方案是否仍稳定有效。',
-    why: 'VAL 是过拟合防线，能直接揭示泛化能力。',
-    pitfall: '常见误区是只看收益不看回撤和换手。',
-    cta: '确认验证结论',
-  },
-  S16: {
-    headline: '输出因子档案卡',
-    what: '给出采纳/淘汰结论并归档参数区间。',
-    why: '档案卡是后续多因子与策略复用的入口资产。',
-    pitfall: '常见误区是结论只看单一指标，忽视稳定性。',
-    cta: '确认因子结论',
-  },
-  M2: {
-    headline: '去冗余筛选',
-    what: '移除高相关因子，保留独立贡献更强的候选。',
-    why: '去冗余能降低重复下注，提升组合稳健性。',
-    pitfall: '常见误区是保留过多相关因子导致回撤放大。',
-    cta: '应用去冗余结果',
-  },
-  M3: {
-    headline: '选择合成层级',
-    what: '在信号层与仓位层中选定当前合成方式。',
-    why: '合成层级决定后续风控和调参复杂度。',
-    pitfall: '常见误区是忽略执行复杂度，只追求理论收益。',
-    cta: '确认合成方式',
-  },
-  M4: {
-    headline: '确定权重方案',
-    what: '在等权、表现加权、滚动动态中选择权重策略。',
-    why: '权重方案直接影响组合稳定性和换手水平。',
-    pitfall: '常见误区是过度动态调权，导致成本上升。',
-    cta: '确认权重方案',
-  },
-  M11: {
-    headline: '与最优单因子对比',
-    what: '对比多因子与单因子在 OOS 的核心指标。',
-    why: '只有显著优于最优单因子，合成才有价值。',
-    pitfall: '常见误区是只比较 Sharpe，不比较回撤和成本。',
-    cta: '确认对比结论',
-  },
-  M12: {
-    headline: '输出组合档案卡',
-    what: '形成最终采纳决策并沉淀组合资产。',
-    why: '组合档案卡将直接用于策略部署与复盘。',
-    pitfall: '常见误区是 OOS 后继续回调参，污染测试结论。',
-    cta: '确认组合结论',
-  },
-};
-
-const DEFAULT_DECISION_COPY: DecisionPointCopy = {
-  headline: '研究关键决策点',
-  what: '选择当前步骤的推进方案并确认执行。',
-  why: '该决策会影响后续质量、风险、效率与成本。',
-  pitfall: '常见误区是忽略成本与稳定性，只看短期速度。',
-  cta: '应用决策并继续',
-};
-
-function getDecisionPointCopy(stepId?: string): DecisionPointCopy {
-  if (!stepId) return DEFAULT_DECISION_COPY;
-  return DECISION_POINT_COPIES[stepId] || DEFAULT_DECISION_COPY;
-}
-
-function DecisionPointModal({
-  open,
-  onClose,
-  taskType,
-  stepId,
-  stepName,
-  decisionOptions,
-  selectedDecisionId,
-  onSelectDecision,
-  onConfirm,
-}: {
-  open: boolean;
-  onClose: () => void;
-  taskType: TaskType;
-  stepId?: string;
-  stepName?: string;
-  decisionOptions: TaskDecisionOption[];
-  selectedDecisionId: string;
-  onSelectDecision: (id: string) => void;
-  onConfirm: () => void;
-}) {
-  if (!open) return null;
-
-  const copy = getDecisionPointCopy(stepId);
-  const selectedOption = decisionOptions.find(option => option.id === selectedDecisionId);
-
-  return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-[oklch(0.06_0.015_260_/_0.82)] backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="w-full max-w-[680px] max-h-[85vh] overflow-y-auto border-2 border-[oklch(0.82_0.15_85_/_0.5)] bg-[oklch(0.1_0.015_260_/_0.98)] p-4 space-y-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-pixel text-[8px] text-[oklch(0.82_0.15_85)]">
-              🔀 {taskType === 'single_factor' ? '单因子' : '多因子'}关键决策点
-            </p>
-            <p className="font-display text-[13px] font-semibold text-[oklch(0.92_0.01_260)] mt-1">
-              {stepId} · {stepName}
-            </p>
-            <p className="font-display text-[11px] text-[oklch(0.72_0.19_155)] mt-1">{copy.headline}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="shrink-0 font-pixel text-[7px] border border-[oklch(0.3_0.03_260)] text-[oklch(0.52_0.02_260)] px-2 py-1 hover:border-[oklch(0.82_0.15_85)] hover:text-[oklch(0.82_0.15_85)] transition-colors"
-          >
-            关闭
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.12_0.02_260)] p-2">
-            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">做什么</p>
-            <p className="font-display text-[10px] text-[oklch(0.78_0.02_260)] mt-1 leading-relaxed">{copy.what}</p>
-          </div>
-          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.12_0.02_260)] p-2">
-            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">为什么</p>
-            <p className="font-display text-[10px] text-[oklch(0.78_0.02_260)] mt-1 leading-relaxed">{copy.why}</p>
-          </div>
-          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.12_0.02_260)] p-2">
-            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">常见误区</p>
-            <p className="font-display text-[10px] text-[oklch(0.78_0.02_260)] mt-1 leading-relaxed">{copy.pitfall}</p>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {decisionOptions.map(option => {
-            const isSelected = option.id === selectedDecisionId;
-            const costPct = Math.round(option.impact.costMultiplier * 100);
-            return (
-              <button
-                key={option.id}
-                onClick={() => onSelectDecision(option.id)}
-                className={`w-full text-left border-2 px-3 py-2.5 transition-all ${
-                  isSelected
-                    ? 'border-[oklch(0.82_0.15_85)] bg-[oklch(0.82_0.15_85_/_0.12)]'
-                    : 'border-[oklch(0.3_0.03_260)] bg-[oklch(0.14_0.02_260)] hover:border-[oklch(0.5_0.04_260)]'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className={`font-display text-xs font-semibold ${isSelected ? 'text-[oklch(0.9_0.08_85)]' : 'text-[oklch(0.82_0.02_260)]'}`}>{option.label}</span>
-                  <span className="font-mono-data text-[10px] text-[oklch(0.55_0.02_260)]">
-                    质{option.impact.quality >= 0 ? '+' : ''}{option.impact.quality} 风{option.impact.risk >= 0 ? '+' : ''}{option.impact.risk} 速{option.impact.efficiency >= 0 ? '+' : ''}{option.impact.efficiency} 成本{costPct >= 0 ? '+' : ''}{costPct}%
-                  </span>
-                </div>
-                <p className="font-display text-[10px] text-[oklch(0.58_0.02_260)] mt-1.5 leading-relaxed">{option.description}</p>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.11_0.018_260)] p-2">
-          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">当前选择</p>
-          <p className="font-display text-[11px] text-[oklch(0.82_0.02_260)] mt-1">
-            {selectedOption ? selectedOption.label : '请选择一个方案'}
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="font-pixel text-[7px] px-3 py-2 border border-[oklch(0.28_0.03_260)] text-[oklch(0.55_0.02_260)] hover:text-[oklch(0.82_0.15_85)] hover:border-[oklch(0.82_0.15_85)] transition-colors"
-          >
-            稍后处理
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={!selectedOption}
-            className={`font-pixel text-[7px] px-3 py-2 border-2 transition-all ${
-              selectedOption
-                ? 'bg-[oklch(0.82_0.15_85)] text-[oklch(0.12_0.02_260)] border-[oklch(0.88_0.16_85)] hover:brightness-110'
-                : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)] cursor-not-allowed'
-            }`}
-          >
-            ✅ {copy.cta}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Active Task Monitor ---
-function TaskMonitor({ task }: { task: ResearchTask }) {
-  const { resumeTask, setActivePanel, setSelectedReport, state } = useGame();
-  const steps = task.type === 'single_factor' ? SINGLE_FACTOR_STEPS : MULTI_FACTOR_STEPS;
-  const currentStep = steps[task.currentStepIndex];
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const decisionOptions = currentStep ? getDecisionOptions(task.type, currentStep.id) : [];
-  const [selectedDecisionId, setSelectedDecisionId] = useState<string>('');
-  const [showDecisionModal, setShowDecisionModal] = useState(false);
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [task.logs.length]);
-
-  useEffect(() => {
-    if (task.status !== 'paused') return;
-    if (decisionOptions.length === 0) return;
-    if (decisionOptions.some(option => option.id === selectedDecisionId)) return;
-    setSelectedDecisionId(decisionOptions[1]?.id || decisionOptions[0].id);
-  }, [task.status, task.currentStepIndex, task.type, decisionOptions, selectedDecisionId]);
-
-  useEffect(() => {
-    if (task.status !== 'paused') {
-      setShowDecisionModal(false);
-    }
-  }, [task.status]);
-
-  const handleViewReport = () => {
-    const report = state.reports.find(r => r.taskId === task.id);
-    if (report) {
-      setSelectedReport(report);
-      setActivePanel('report-viewer');
-    }
-  };
-
-  const selectedOption = decisionOptions.find(option => option.id === selectedDecisionId);
-
-  const profileCards = [
-    { key: 'quality', label: '质量', value: task.qualityScore, color: 'oklch(0.75 0.12 200)' },
-    { key: 'risk', label: '风险', value: task.riskScore, color: 'oklch(0.82 0.15 85)' },
-    { key: 'efficiency', label: '效率', value: task.efficiencyScore, color: 'oklch(0.72 0.19 155)' },
-  ];
-
-  const statusText = task.status === 'paused'
-    ? '🔀 等待决策'
-    : task.status === 'completed'
-      ? '✅ 完成'
-      : '⏳ 运行中';
-
-  const statusClass = task.status === 'paused'
-    ? 'text-[oklch(0.82_0.15_85)] animate-pulse'
-    : task.status === 'completed'
-      ? 'text-[oklch(0.72_0.19_155)]'
-      : 'text-[oklch(0.55_0.2_265)]';
-
-  return (
-    <div className="border-2 border-[oklch(0.25_0.03_260)] bg-[oklch(0.1_0.015_260)] p-3 space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-pixel text-[8px] text-[oklch(0.82_0.15_85)]">
-            {task.type === 'single_factor' ? '🔬 因子挖掘' : '🧬 多因子合成'}
-          </p>
-          <p className="font-display text-[11px] text-[oklch(0.8_0.01_260)] mt-0.5">
-            {state.researchers.find(r => r.id === task.researcherId)?.skin.name} · Step {task.currentStepIndex + 1}/{steps.length}
-          </p>
-          <p className="font-display text-[10px] text-[oklch(0.52_0.02_260)] mt-1 leading-relaxed">
-            {currentStep?.id} {currentStep?.name}：{currentStep?.description}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="font-mono-data text-[11px] text-[oklch(0.55_0.2_265)]">
-            🪙 {(task.tokenCost / 1000).toFixed(0)}K
-          </p>
-          <p className={`font-pixel text-[6px] ${statusClass}`}>
-            {statusText}
-          </p>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">工作流进度</span>
-          <span className="font-mono-data text-[10px] text-[oklch(0.78_0.03_260)]">{task.overallProgress}%</span>
-        </div>
-        <div className="flex gap-0.5">
-          {steps.map((step, i) => (
-            <div
-              key={step.id}
-              className="flex-1 h-2 border border-[oklch(0.2_0.02_260)]"
-              title={`${step.id}: ${step.name}`}
-              style={{
-                backgroundColor: i < task.currentStepIndex
-                  ? 'oklch(0.55 0.2 265)'
-                  : i === task.currentStepIndex
-                    ? task.status === 'paused' ? 'oklch(0.82 0.15 85)' : 'oklch(0.55 0.2 265 / 0.5)'
-                    : 'oklch(0.15 0.02 260)',
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2">
-        {profileCards.map(profile => (
-          <div key={profile.key} className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.08_0.015_260)] p-2">
-            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)] mb-1">{profile.label}</p>
-            <p className="font-mono-data text-[11px] font-bold mb-1" style={{ color: profile.color }}>{profile.value}</p>
-            <div className="h-1.5 bg-[oklch(0.16_0.02_260)] border border-[oklch(0.2_0.02_260)]">
-              <div className="h-full" style={{ width: `${profile.value}%`, backgroundColor: profile.color }} />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {task.decisionHistory.length > 0 && (
-        <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.09_0.015_260)] p-2">
-          <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)] mb-1.5">最近决策</p>
-          <div className="space-y-1">
-            {task.decisionHistory.slice(-2).map(item => (
-              <div key={`${item.stepId}-${item.timestamp}`} className="flex items-start justify-between gap-2">
-                <span className="font-display text-[10px] text-[oklch(0.72_0.19_155)]">{item.stepId} · {item.optionLabel}</span>
-                <span className="font-display text-[9px] text-[oklch(0.5_0.02_260)] text-right">{item.summary}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-[oklch(0.08_0.015_260)] border border-[oklch(0.2_0.02_260)] max-h-36 overflow-y-auto custom-scrollbar">
-        <div className="p-2 space-y-0.5">
-          {task.logs.slice(-14).map((log, i) => (
-            <div key={i} className="flex gap-2">
-              <span className="font-mono-data text-[8px] text-[oklch(0.35_0.02_260)] shrink-0">{log.timestamp}</span>
-              <span className={`font-display text-[10px] leading-relaxed ${
-                log.type === 'success'
-                  ? 'text-[oklch(0.72_0.19_155)]'
-                  : log.type === 'warning'
-                    ? 'text-[oklch(0.82_0.15_85)]'
-                    : log.type === 'decision'
-                      ? 'text-[oklch(0.82_0.15_85)] font-semibold'
-                      : 'text-[oklch(0.6_0.02_260)]'
-              }`}>
-                {log.message}
-              </span>
-            </div>
-          ))}
-          <div ref={logsEndRef} />
-        </div>
-      </div>
-
-      {task.status === 'paused' && (
-        <div className="border-2 border-[oklch(0.82_0.15_85_/_0.45)] bg-[oklch(0.82_0.15_85_/_0.05)] p-3 space-y-2.5">
-          <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">
-            🔀 CEO 决策点：{currentStep?.name}
-          </p>
-          <p className="font-display text-[10px] text-[oklch(0.62_0.02_260)] leading-relaxed">
-            此步骤使用统一决策弹窗，支持步骤解说、影响对比和结果确认。
-          </p>
-          <button
-            onClick={() => setShowDecisionModal(true)}
-            className="w-full font-pixel text-[7px] py-2 border border-[oklch(0.82_0.15_85_/_0.7)] bg-[oklch(0.82_0.15_85_/_0.12)] text-[oklch(0.9_0.08_85)] hover:bg-[oklch(0.82_0.15_85_/_0.2)] transition-colors"
-          >
-            打开决策弹窗
-          </button>
-          <button
-            onClick={() => {
-              if (!selectedOption) return;
-              resumeTask(task.id, { optionId: selectedOption.id });
-            }}
-            disabled={!selectedOption}
-            className={`w-full font-pixel text-[8px] py-2.5 border-2 transition-all ${
-              selectedOption
-                ? 'bg-[oklch(0.82_0.15_85)] text-[oklch(0.12_0.02_260)] border-[oklch(0.88_0.16_85)] hover:brightness-110'
-                : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)] cursor-not-allowed'
-            }`}
-            style={{ boxShadow: 'inset -2px -2px 0 rgba(0,0,0,0.2), inset 2px 2px 0 rgba(255,255,255,0.2)' }}
-          >
-            ✅ 应用决策并继续
-          </button>
-        </div>
-      )}
-
-      {task.status === 'completed' && (
-        <button
-          onClick={handleViewReport}
-          className="w-full font-pixel text-[8px] py-2.5 bg-[oklch(0.72_0.19_155)] text-white border-2 border-[oklch(0.8_0.2_155)] hover:brightness-110 transition-all"
-        >
-          📄 查看研究报告
-        </button>
-      )}
-
-      <DecisionPointModal
-        open={showDecisionModal}
-        onClose={() => setShowDecisionModal(false)}
-        taskType={task.type}
-        stepId={currentStep?.id}
-        stepName={currentStep?.name}
-        decisionOptions={decisionOptions}
-        selectedDecisionId={selectedDecisionId}
-        onSelectDecision={setSelectedDecisionId}
-        onConfirm={() => {
-          if (!selectedOption) return;
-          resumeTask(task.id, { optionId: selectedOption.id });
-          setShowDecisionModal(false);
-        }}
-      />
-    </div>
-  );
-}
+import { EXPERIMENT_PACK_LIBRARY, useGame, type ThesisGoal, type ThesisType } from '@/contexts/GameContext';
+import { useState } from 'react';
+import { MultiFactorSetup } from './research/MultiFactorSetup';
+import { ProjectConfigSetup } from './research/ProjectConfigSetup';
+import { SingleFactorSetup } from './research/SingleFactorSetup';
+import { TaskMonitor } from './research/TaskMonitor';
 
 // --- Main Research Panel ---
 export function ResearchPanel() {
-  const { state, setProjectConfig, setPlayMode } = useGame();
+  const { state, setProjectConfig, setPlayMode, createThesis, planThesis, launchThesis, reviewThesis } = useGame();
   const [view, setView] = useState<'main' | 'config' | 'single_factor' | 'multi_factor'>('main');
   const [selectedResearcherId, setSelectedResearcherId] = useState<string>('');
+  const [thesisType, setThesisType] = useState<ThesisType>('factor');
+  const [thesisGoal, setThesisGoal] = useState<ThesisGoal>('robustness');
+  const [thesisHypothesis, setThesisHypothesis] = useState('');
 
   const idleResearchers = state.researchers.filter(r => r.status === 'idle');
   const leadIdleResearcher = idleResearchers[0];
@@ -867,25 +28,41 @@ export function ResearchPanel() {
   const waitingTasks = state.activeTasks.filter(t => t.status === 'paused').length;
   const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
   const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
+  const runningTheses = state.theses.filter(item => ['running', 'oos_locked', 'oos_running'].includes(item.status)).length;
+  const reviewableTheses = state.theses.filter(item => item.status === 'needs_review').length;
   const isGuidedMode = state.playMode === 'guided';
   const hasThreeWaySplit = state.projectConfig?.splitMode === 'three_way';
   const canStartMulti = passedFactors >= 2 && hasThreeWaySplit;
+
+  const createThesisFromForm = () => {
+    const hypothesis = thesisHypothesis.trim();
+    if (!hypothesis) return;
+    createThesis({
+      type: thesisType,
+      goal: thesisGoal,
+      hypothesis,
+      selectedFactorIds: thesisType === 'portfolio'
+        ? state.factorCards.filter(card => card.status === 'passed').slice(0, 3).map(card => card.id)
+        : undefined,
+    });
+    setThesisHypothesis('');
+  };
 
   const stageHint = !state.projectConfig
     ? '先完成项目配置，再启动第一条单因子研究链路。'
     : !hasThreeWaySplit
       ? '当前是两段切分 (IS/TEST)。请先改为三段切分 (IS/VAL/OOS)，再开启多因子与 OOS 终评。'
-    : isGuidedMode
-      ? passedFactors < 2
-        ? '新手模式：先用单因子任务凑齐 2 个通过因子，再进入多因子。'
-        : adoptedPortfolios === 0
-          ? '新手模式：用已通过因子发起一次多因子合成，拿到首个可部署组合。'
-          : '新手模式：你已跑通完整链路，可切到专业模式进行批量派单。'
-      : passedFactors < 2
-        ? '专业模式：直接给研究员派单，优先快速扩展通过因子数量。'
-        : adoptedPortfolios === 0
-          ? '专业模式：立即推进多因子合成，验证组合相对单因子提升。'
-          : '专业模式：并行运行研究任务，持续优化组合与策略池。';
+      : isGuidedMode
+        ? passedFactors < 2
+          ? '新手模式：先用单因子任务凑齐 2 个通过因子，再进入多因子。'
+          : adoptedPortfolios === 0
+            ? '新手模式：用已通过因子发起一次多因子合成，拿到首个可部署组合。'
+            : '新手模式：你已跑通完整链路，可切到专业模式进行批量派单。'
+        : passedFactors < 2
+          ? '专业模式：直接给研究员派单，优先快速扩展通过因子数量。'
+          : adoptedPortfolios === 0
+            ? '专业模式：立即推进多因子合成，验证组合相对单因子提升。'
+            : '专业模式：并行运行研究任务，持续优化组合与策略池。';
 
   const guidedChecklist = [
     {
@@ -1022,6 +199,186 @@ export function ResearchPanel() {
         </div>
       </div>
 
+      <div className="border-2 border-[oklch(0.3_0.04_260)] bg-[oklch(0.11_0.016_260)] p-3 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.75_0.12_200)]">🧩 V3 命题工作台</p>
+            <p className="font-display text-[10px] text-[oklch(0.62_0.02_260)] mt-1 leading-relaxed">
+              用命题驱动研究：先立题，再规划实验，再派单执行，最后做证据裁决。
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">待裁决命题</p>
+            <p className={`font-mono-data text-sm font-bold ${reviewableTheses > 0 ? 'text-[oklch(0.82_0.15_85)]' : 'text-[oklch(0.72_0.19_155)]'}`}>
+              {reviewableTheses}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.13_0.02_260)] p-2">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">研究预算</p>
+            <p className="font-mono-data text-sm text-[oklch(0.82_0.15_85)]">🪙 {Math.round(state.resources.researchBudget / 1000)}K</p>
+          </div>
+          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.13_0.02_260)] p-2">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">命题并发</p>
+            <p className="font-mono-data text-sm text-[oklch(0.72_0.19_155)]">{runningTheses}/{state.resources.maxConcurrentTheses}</p>
+          </div>
+          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.13_0.02_260)] p-2">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">OOS 审判券</p>
+            <p className={`font-mono-data text-sm ${state.resources.oosTickets > 0 ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.63_0.22_25)]'}`}>
+              🎟️ {state.resources.oosTickets}
+            </p>
+          </div>
+          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.13_0.02_260)] p-2">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">信任分</p>
+            <p className="font-mono-data text-sm text-[oklch(0.75_0.12_200)]">{state.resources.trustScore}</p>
+          </div>
+        </div>
+
+        <div className="border border-[oklch(0.26_0.03_260)] bg-[oklch(0.12_0.02_260)] p-2.5 space-y-2">
+          <div className="grid grid-cols-3 gap-1.5">
+            {([
+              { key: 'factor', label: '单因子命题' },
+              { key: 'portfolio', label: '组合命题' },
+            ] as const).map(item => (
+              <button
+                key={item.key}
+                onClick={() => setThesisType(item.key)}
+                className={`font-display text-[10px] py-1.5 border transition-all ${
+                  thesisType === item.key
+                    ? 'border-[oklch(0.72_0.19_155)] text-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.12)]'
+                    : 'border-[oklch(0.25_0.03_260)] text-[oklch(0.58_0.02_260)]'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+            {([
+              { key: 'return', label: '收益' },
+              { key: 'drawdown', label: '回撤' },
+              { key: 'robustness', label: '稳健' },
+            ] as const).map(item => (
+              <button
+                key={item.key}
+                onClick={() => setThesisGoal(item.key)}
+                className={`font-display text-[10px] py-1.5 border transition-all ${
+                  thesisGoal === item.key
+                    ? 'border-[oklch(0.55_0.2_265)] text-[oklch(0.55_0.2_265)] bg-[oklch(0.55_0.2_265_/_0.12)]'
+                    : 'border-[oklch(0.25_0.03_260)] text-[oklch(0.58_0.02_260)]'
+                }`}
+              >
+                目标:{item.label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={thesisHypothesis}
+            onChange={(e) => setThesisHypothesis(e.target.value)}
+            placeholder="写一句可检验的命题，例如：趋势中高成交量突破更容易延续，目标是降低回撤..."
+            className="w-full h-16 bg-[oklch(0.11_0.02_260)] border border-[oklch(0.25_0.03_260)] text-[oklch(0.85_0.01_260)] font-display text-[11px] p-2 resize-none focus:border-[oklch(0.72_0.19_155)] focus:outline-none"
+          />
+          <button
+            onClick={createThesisFromForm}
+            disabled={!thesisHypothesis.trim()}
+            className={`w-full font-pixel text-[7px] py-2 border-2 transition-all ${
+              thesisHypothesis.trim()
+                ? 'bg-[oklch(0.75_0.12_200_/_0.18)] border-[oklch(0.75_0.12_200)] text-[oklch(0.85_0.06_200)] hover:brightness-110'
+                : 'bg-[oklch(0.15_0.02_260)] border-[oklch(0.22_0.025_260)] text-[oklch(0.35_0.02_260)] cursor-not-allowed'
+            }`}
+          >
+            ➕ 创建命题
+          </button>
+        </div>
+
+        {state.theses.length === 0 ? (
+          <div className="border border-dashed border-[oklch(0.26_0.03_260)] p-3 text-center">
+            <p className="font-display text-[10px] text-[oklch(0.55_0.02_260)]">暂无命题，先创建第一条研究命题。</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+            {state.theses.slice(0, 8).map(thesis => {
+              const statusColorMap: Record<string, string> = {
+                draft: 'text-[oklch(0.75_0.12_200)]',
+                planned: 'text-[oklch(0.82_0.15_85)]',
+                running: 'text-[oklch(0.72_0.19_155)]',
+                oos_locked: 'text-[oklch(0.82_0.15_85)]',
+                oos_running: 'text-[oklch(0.63_0.22_25)]',
+                needs_review: 'text-[oklch(0.82_0.15_85)]',
+                passed: 'text-[oklch(0.72_0.19_155)]',
+                adopted: 'text-[oklch(0.72_0.19_155)]',
+                hold: 'text-[oklch(0.82_0.15_85)]',
+                failed: 'text-[oklch(0.63_0.22_25)]',
+                rejected: 'text-[oklch(0.63_0.22_25)]',
+                parked: 'text-[oklch(0.58_0.02_260)]',
+              };
+              const statusColor = statusColorMap[thesis.status] || 'text-[oklch(0.58_0.02_260)]';
+              const reviewOptions = thesis.type === 'factor'
+                ? ([
+                  { key: 'passed' as const, label: '通过' },
+                  { key: 'failed' as const, label: '失败' },
+                  { key: 'parked' as const, label: '暂缓' },
+                ])
+                : ([
+                  { key: 'adopted' as const, label: '采纳' },
+                  { key: 'hold' as const, label: '观察' },
+                  { key: 'rejected' as const, label: '拒绝' },
+                ]);
+              return (
+                <div key={thesis.id} className="border border-[oklch(0.25_0.03_260)] bg-[oklch(0.12_0.02_260)] p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-display text-[11px] text-[oklch(0.86_0.01_260)] truncate">{thesis.title}</p>
+                    <span className={`font-pixel text-[6px] ${statusColor}`}>{thesis.status}</span>
+                  </div>
+                  <p className="font-display text-[9px] text-[oklch(0.55_0.02_260)] leading-relaxed">{thesis.hypothesis}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {thesis.experimentPacks.map(pack => (
+                      <span key={pack} className="font-pixel text-[5px] px-1.5 py-1 border border-[oklch(0.28_0.03_260)] text-[oklch(0.72_0.19_155)]">
+                        {EXPERIMENT_PACK_LIBRARY[pack].label}
+                      </span>
+                    ))}
+                  </div>
+                  {thesis.status === 'draft' || thesis.status === 'parked' ? (
+                    <button
+                      onClick={() => planThesis(thesis.id)}
+                      className="w-full font-pixel text-[6px] py-1.5 border border-[oklch(0.82_0.15_85_/_0.55)] text-[oklch(0.82_0.15_85)] bg-[oklch(0.82_0.15_85_/_0.08)]"
+                    >
+                      规划实验并扣预算
+                    </button>
+                  ) : null}
+                  {thesis.status === 'planned' ? (
+                    <button
+                      onClick={() => leadIdleResearcher && launchThesis(thesis.id, leadIdleResearcher.id)}
+                      disabled={!leadIdleResearcher}
+                      className={`w-full font-pixel text-[6px] py-1.5 border ${
+                        leadIdleResearcher
+                          ? 'border-[oklch(0.72_0.19_155_/_0.55)] text-[oklch(0.72_0.19_155)] bg-[oklch(0.72_0.19_155_/_0.08)]'
+                          : 'border-[oklch(0.22_0.025_260)] text-[oklch(0.35_0.02_260)] bg-[oklch(0.15_0.02_260)] cursor-not-allowed'
+                      }`}
+                    >
+                      {leadIdleResearcher ? `派给 ${leadIdleResearcher.skin.name} 执行` : '无空闲研究员'}
+                    </button>
+                  ) : null}
+                  {thesis.status === 'needs_review' ? (
+                    <div className="grid grid-cols-3 gap-1">
+                      {reviewOptions.map(option => (
+                        <button
+                          key={option.key}
+                          onClick={() => reviewThesis(thesis.id, option.key, `${option.label}：来自命题工作台裁决`)}
+                          className="font-pixel text-[6px] py-1 border border-[oklch(0.75_0.12_200_/_0.45)] text-[oklch(0.75_0.12_200)]"
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {isGuidedMode ? (
         <div className="border-2 border-[oklch(0.82_0.15_85_/_0.4)] bg-[oklch(0.82_0.15_85_/_0.06)] p-3 space-y-2.5">
           <div className="flex items-start justify-between gap-2">
@@ -1048,9 +405,9 @@ export function ResearchPanel() {
                   ? '去配置'
                   : nextGuidedStep.id === 'multi' && !hasThreeWaySplit
                     ? '先改切分'
-                  : leadIdleResearcher
-                    ? `派给 ${leadIdleResearcher.skin.name}`
-                    : '暂无空闲研究员'
+                    : leadIdleResearcher
+                      ? `派给 ${leadIdleResearcher.skin.name}`
+                      : '暂无空闲研究员'
                 : '已完成'}
             </button>
           </div>
