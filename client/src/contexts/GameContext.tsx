@@ -14,6 +14,7 @@ import {
   type GameState,
   type InsightViewMode,
   type MultiFactorConfig,
+  type LearningCard,
   type QuarterObjective,
   type QuarterScoreBreakdown,
   type QuarterTargetMix,
@@ -148,6 +149,58 @@ const buildActiveEvent = (template: typeof GAME_EVENT_LIBRARY[number], dayInQuar
   remainingDays: template.durationDays,
 });
 
+const buildLearningCard = (
+  thesis: Thesis,
+  outcome: ThesisFinalOutcome,
+  reason: string,
+): LearningCard => {
+  const strongestEvidence = [...thesis.evidenceNodes]
+    .sort((a, b) => b.confidence - a.confidence)[0];
+  const keyEvidence = strongestEvidence
+    ? `${strongestEvidence.label}（置信度 ${Math.round(strongestEvidence.confidence * 100)}%）`
+    : '暂无关键证据，请补充一次可解释实验。';
+
+  const lessonByOutcome: Record<ThesisFinalOutcome, string> = {
+    passed: 'VAL 证据充分时再归档通过，可显著减少伪阳性。',
+    adopted: '组合在 OOS 终审通过后再上线，可信度更高。',
+    hold: '证据不充分时先观察，比贸然上线更稳健。',
+    parked: '资源紧张时暂缓并不丢分，优先级管理也是能力。',
+    failed: '失败命题能帮助你识别过拟合模式，属于有效学习。',
+    rejected: '拒绝不达标组合可避免实盘回撤扩散。',
+  };
+
+  const avoidByOutcome: Record<ThesisFinalOutcome, string> = {
+    passed: '避免只看收益率，忽视回撤和成本可行性。',
+    adopted: '避免 OOS 之后再回调参数，破坏可审计性。',
+    hold: '避免“有点好就上线”，先补反例和扰动检验。',
+    parked: '避免长期搁置，建议设置下一次复盘触发条件。',
+    failed: '避免把失败当成浪费，必须记录失效场景。',
+    rejected: '避免重复提交同类无增益组合，先修正结构。',
+  };
+
+  const nextActionFactor = outcome === 'failed' || outcome === 'parked'
+    ? '重写单因子命题，优先补反例验证包。'
+    : '把通过因子推进到组合命题池，验证组合增益。';
+  const nextActionPortfolio = outcome === 'rejected' || outcome === 'hold'
+    ? '回到组合命题阶段，调整去冗余与权重方案后再申请终审。'
+    : '将采纳组合提交到策略工坊，先模拟上线观察。';
+
+  return {
+    id: `lc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    thesisId: thesis.id,
+    thesisType: thesis.type,
+    thesisTitle: thesis.title,
+    outcome,
+    hypothesis: thesis.hypothesis,
+    keyEvidence,
+    lesson: lessonByOutcome[outcome],
+    avoidNextTime: avoidByOutcome[outcome],
+    recommendedNextAction: thesis.type === 'factor' ? nextActionFactor : nextActionPortfolio,
+    createdAt: nowCN(),
+    reviewed: false,
+  };
+};
+
 const createFactorEvidenceNode = (card: FactorCard, runId: string) => ({
   id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
   side: card.status === 'passed' ? 'support' as const : 'oppose' as const,
@@ -202,6 +255,7 @@ interface GameContextType {
   planThesis: (thesisId: string, packs?: ExperimentPackType[]) => void;
   launchThesis: (thesisId: string, researcherId: string) => void;
   reviewThesis: (thesisId: string, outcome: ThesisFinalOutcome, reason: string) => void;
+  markLearningCardReviewed: (cardId: string) => void;
   advanceQuarterDay: (reason?: QuarterAdvanceReason) => void;
   startSingleFactorTask: (researcherId: string, config: SingleFactorConfig, thesisId?: string) => void;
   startMultiFactorTask: (researcherId: string, config: MultiFactorConfig, thesisId?: string) => void;
@@ -591,12 +645,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     };
     let reviewedTitle = '';
     let applied = false;
+    let createdLearningCard = false;
     setState(prev => {
       const thesis = prev.theses.find(item => item.id === thesisId);
       if (!thesis) return prev;
       reviewedTitle = thesis.title;
       if (!['needs_review', 'parked'].includes(thesis.status)) return prev;
       applied = true;
+      const learningCard = buildLearningCard(thesis, outcome, reason);
+      createdLearningCard = true;
       const trustModifier = prev.quarter.activeEvent?.effect.reviewTrustOffset ?? 0;
       const trustScore = clampScore(prev.resources.trustScore + trustDeltaMap[outcome] + trustModifier);
       const refund = (outcome === 'failed' || outcome === 'rejected')
@@ -619,6 +676,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             timestamp: nowCN(),
           },
         } : item),
+        learningCards: [learningCard, ...prev.learningCards].slice(0, 120),
       };
     });
     if (!applied) {
@@ -626,8 +684,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return;
     }
     addNotification('info', '命题裁决完成', `${reviewedTitle} → ${outcome.toUpperCase()}`);
+    if (createdLearningCard) {
+      addNotification('success', '学习卡已生成', '请在学习卡面板复盘这次裁决，沉淀可复用经验。');
+    }
     advanceQuarterDay('review');
   }, [addNotification, advanceQuarterDay]);
+
+  const markLearningCardReviewed = useCallback((cardId: string) => {
+    setState(prev => ({
+      ...prev,
+      learningCards: prev.learningCards.map(card => card.id === cardId ? { ...card, reviewed: true } : card),
+    }));
+  }, []);
 
   const launchThesis = useCallback((thesisId: string, researcherId: string) => {
     const thesis = state.theses.find(item => item.id === thesisId);
@@ -1269,6 +1337,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       planThesis,
       launchThesis,
       reviewThesis,
+      markLearningCardReviewed,
       advanceQuarterDay,
       startSingleFactorTask,
       startMultiFactorTask,

@@ -47,6 +47,7 @@ export const INITIAL_STATE: GameState = {
   notifications: [],
   oosRegistry: {},
   theses: [],
+  learningCards: [],
   resources: {
     researchBudget: 600000,
     maxConcurrentTheses: 3,

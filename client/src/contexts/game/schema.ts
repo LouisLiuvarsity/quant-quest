@@ -47,6 +47,21 @@ export interface ThesisVerdict {
   timestamp: string;
 }
 
+export interface LearningCard {
+  id: string;
+  thesisId: string;
+  thesisType: ThesisType;
+  thesisTitle: string;
+  outcome: ThesisVerdict['outcome'];
+  hypothesis: string;
+  keyEvidence: string;
+  lesson: string;
+  avoidNextTime: string;
+  recommendedNextAction: string;
+  createdAt: string;
+  reviewed: boolean;
+}
+
 export interface Thesis {
   id: string;
   type: ThesisType;
@@ -515,6 +530,7 @@ export interface GameState {
   notifications: GameNotification[];
   oosRegistry: Record<string, string>;
   theses: Thesis[];
+  learningCards: LearningCard[];
   resources: ResourceState;
   quarter: QuarterState;
 }

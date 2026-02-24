@@ -129,6 +129,8 @@ export const buildAiCoachTips = (state: GameState): string[] => {
   const adoptedPortfolios = state.portfolioCards.filter(card => card.status === 'adopted').length;
   const liveStrategies = state.strategies.filter(strategy => strategy.status === 'live').length;
   const activeEvent = state.quarter.activeEvent;
+  const learningCards = state.learningCards.length;
+  const pendingLearningCards = state.learningCards.filter(card => !card.reviewed).length;
 
   if (!state.projectConfig) {
     return [
@@ -143,6 +145,22 @@ export const buildAiCoachTips = (state: GameState): string[] => {
       `当前事件：${activeEvent.title}（剩余 ${activeEvent.remainingDays} 天），先考虑它对成本与信任分的冲击。`,
       '高不确定环境下优先稳健命题，减少一次性激进押注。',
       '若季度分下降，先补审计质量与回撤控制，再追收益。',
+    ];
+  }
+
+  if (pendingLearningCards > 0) {
+    return [
+      `你有 ${pendingLearningCards} 张学习卡待复盘，先把结论沉淀为可复用经验。`,
+      '每张学习卡至少确认“关键证据、学到什么、下次避免什么”。',
+      '先复盘再开新命题，能显著提高后续通过率。',
+    ];
+  }
+
+  if (learningCards === 0 && state.theses.some(thesis => ['passed', 'failed', 'parked', 'adopted', 'hold', 'rejected'].includes(thesis.status))) {
+    return [
+      '你已完成首个裁决，下一步去学习卡库完成第一次复盘。',
+      '复盘不是总结口号，而是沉淀可执行的下次动作。',
+      '完成首张学习卡后再并行扩展命题池。',
     ];
   }
 

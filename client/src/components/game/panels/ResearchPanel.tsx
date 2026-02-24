@@ -16,6 +16,7 @@ import { TaskMonitor } from './research/TaskMonitor';
 export function ResearchPanel() {
   const {
     state,
+    setActivePanel,
     setProjectConfig,
     setPlayMode,
     createThesis,
@@ -46,6 +47,7 @@ export function ResearchPanel() {
   const quarter = state.quarter;
   const targetMix = quarter.objective.targetMix;
   const activeEvent = quarter.activeEvent;
+  const finalThesisStatuses = ['passed', 'failed', 'parked', 'adopted', 'hold', 'rejected'];
 
   const createThesisFromForm = () => {
     const hypothesis = thesisHypothesis.trim();
@@ -60,6 +62,93 @@ export function ResearchPanel() {
     });
     setThesisHypothesis('');
   };
+
+  const firstRunChecklist = [
+    {
+      id: 'config',
+      title: '完成项目配置',
+      detail: '统一 K 线、资产池和切分口径。',
+      done: Boolean(state.projectConfig),
+    },
+    {
+      id: 'create_thesis',
+      title: '创建首条单因子命题',
+      detail: '只写一句可检验假设，目标先选稳健。',
+      done: state.theses.length > 0,
+    },
+    {
+      id: 'launch_thesis',
+      title: '启动首个命题任务',
+      detail: '先跑默认实验包，不做复杂调参。',
+      done: state.theses.some(item => Boolean(item.linkedTaskId)),
+    },
+    {
+      id: 'make_verdict',
+      title: '完成首个证据裁决',
+      detail: '看 Sharpe/回撤/成本后 Sharpe 三项做结论。',
+      done: state.theses.some(item => finalThesisStatuses.includes(item.status)),
+    },
+    {
+      id: 'review_learning',
+      title: '复盘首张学习卡',
+      detail: '沉淀“学到什么/下次避免什么”。',
+      done: state.learningCards.some(item => item.reviewed),
+    },
+  ] as const;
+  const nextFirstRunStep = firstRunChecklist.find(step => !step.done) ?? null;
+  const firstRunDoneCount = firstRunChecklist.filter(step => step.done).length;
+
+  const handleFirstRunAction = () => {
+    if (!nextFirstRunStep) return;
+    if (nextFirstRunStep.id === 'config') {
+      setView('config');
+      return;
+    }
+    if (nextFirstRunStep.id === 'create_thesis') {
+      if (!thesisHypothesis.trim()) {
+        setThesisType('factor');
+        setThesisGoal('robustness');
+        setThesisHypothesis('当价格突破近期高点且成交量放大时，后续趋势延续概率更高。');
+      } else {
+        createThesisFromForm();
+      }
+      return;
+    }
+    if (nextFirstRunStep.id === 'launch_thesis') {
+      const planned = state.theses.find(item => item.status === 'planned');
+      if (planned && leadIdleResearcher) {
+        launchThesis(planned.id, leadIdleResearcher.id);
+      } else {
+        setPlayMode('guided');
+      }
+      return;
+    }
+    if (nextFirstRunStep.id === 'make_verdict') {
+      const waiting = state.theses.find(item => item.status === 'needs_review');
+      if (!waiting) return;
+      if (waiting.type === 'factor') {
+        reviewThesis(waiting.id, 'passed', '新手首局裁决：先完成闭环，后续再严格提高门槛。');
+      } else {
+        reviewThesis(waiting.id, 'hold', '新手首局裁决：先观察组合稳定性，再决定上线。');
+      }
+      return;
+    }
+    if (nextFirstRunStep.id === 'review_learning') {
+      setActivePanel('learning-cards');
+    }
+  };
+
+  const firstRunActionLabel = !nextFirstRunStep
+    ? '首局脚本已完成'
+    : nextFirstRunStep.id === 'config'
+      ? '去配置项目'
+      : nextFirstRunStep.id === 'create_thesis'
+        ? thesisHypothesis.trim() ? '创建这条命题' : '一键填入示例命题'
+        : nextFirstRunStep.id === 'launch_thesis'
+          ? '尝试派单执行'
+          : nextFirstRunStep.id === 'make_verdict'
+            ? '完成首局裁决'
+            : '查看学习卡';
 
   const stageHint = !state.projectConfig
     ? '先完成项目配置，再启动第一条单因子研究链路。'
@@ -210,6 +299,43 @@ export function ResearchPanel() {
             </span>
           ))}
         </div>
+      </div>
+
+      <div className="border-2 border-[oklch(0.82_0.15_85_/_0.38)] bg-[oklch(0.82_0.15_85_/_0.06)] p-3 space-y-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">⏱ 10分钟首局脚本</p>
+            <p className="font-display text-[10px] text-[oklch(0.6_0.02_260)] mt-1 leading-relaxed">
+              为 0 基础玩家设计：先跑通一条完整研究闭环，再进入自由探索。
+            </p>
+          </div>
+          <p className="font-mono-data text-sm text-[oklch(0.82_0.15_85)]">{firstRunDoneCount}/{firstRunChecklist.length}</p>
+        </div>
+
+        <div className="space-y-1.5">
+          {firstRunChecklist.map(step => (
+            <div key={step.id} className="flex items-center justify-between gap-2 border border-[oklch(0.26_0.03_260)] bg-[oklch(0.12_0.02_260)] px-2.5 py-2">
+              <div>
+                <p className={`font-display text-[10px] ${step.done ? 'text-[oklch(0.72_0.19_155)]' : 'text-[oklch(0.82_0.02_260)]'}`}>
+                  {step.done ? '✅' : '▫️'} {step.title}
+                </p>
+                <p className="font-display text-[9px] text-[oklch(0.52_0.02_260)] mt-0.5">{step.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={handleFirstRunAction}
+          disabled={!nextFirstRunStep}
+          className={`w-full font-pixel text-[7px] py-2 border-2 transition-all ${
+            nextFirstRunStep
+              ? 'bg-[oklch(0.82_0.15_85)] text-[oklch(0.12_0.02_260)] border-[oklch(0.88_0.16_85)] hover:brightness-110'
+              : 'bg-[oklch(0.15_0.02_260)] text-[oklch(0.35_0.02_260)] border-[oklch(0.22_0.025_260)]'
+          }`}
+        >
+          {firstRunActionLabel}
+        </button>
       </div>
 
       <div className="border-2 border-[oklch(0.26_0.03_260)] bg-[oklch(0.1_0.016_260)] p-3 space-y-3">

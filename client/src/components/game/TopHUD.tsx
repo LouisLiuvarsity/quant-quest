@@ -27,6 +27,7 @@ export function TopHUD() {
   const oosConsumedCount = Object.keys(state.oosRegistry).length;
   const oosUnlocked = oosConsumedCount > 0;
   const activeEvent = state.quarter.activeEvent;
+  const pendingLearningCards = state.learningCards.filter(card => !card.reviewed).length;
 
   return (
     <header className="relative z-50 border-b border-[oklch(0.22_0.02_260)] bg-[oklch(0.07_0.012_260_/_0.94)] backdrop-blur-xl">
@@ -154,6 +155,7 @@ export function TopHUD() {
             { label: '季度', value: `Q${state.quarter.quarterNo} D${state.quarter.dayInQuarter}/${state.quarter.totalDays}`, color: 'oklch(0.75 0.12 200)' },
             { label: '季度分', value: state.quarter.currentScore.total, color: 'oklch(0.82 0.15 85)' },
             { label: '实盘策略', value: liveStrategies, color: 'oklch(0.63 0.22 25)' },
+            { label: '学习卡', value: pendingLearningCards, color: pendingLearningCards > 0 ? 'oklch(0.75 0.12 200)' : 'oklch(0.55 0.02 260)' },
             { label: '审判券', value: state.resources.oosTickets, color: state.resources.oosTickets > 0 ? 'oklch(0.72 0.19 155)' : 'oklch(0.63 0.22 25)' },
             { label: '信任', value: state.resources.trustScore, color: 'oklch(0.82 0.15 85)' },
             { label: '事件', value: activeEvent ? `${activeEvent.title}(${activeEvent.remainingDays}d)` : '平稳', color: activeEvent ? 'oklch(0.63 0.22 25)' : 'oklch(0.72 0.19 155)' },
