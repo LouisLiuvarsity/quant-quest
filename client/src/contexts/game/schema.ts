@@ -74,6 +74,72 @@ export interface ResourceState {
   trustScore: number; // 0~100
 }
 
+export interface QuarterTargetMix {
+  return: number;
+  drawdown: number;
+  robustness: number;
+  trust: number;
+}
+
+export interface QuarterObjective {
+  id: string;
+  title: string;
+  summary: string;
+  targetMix: QuarterTargetMix; // must sum to 100
+}
+
+export interface QuarterScoreBreakdown {
+  return: number;
+  drawdown: number;
+  robustness: number;
+  trust: number;
+  total: number;
+}
+
+export interface GameEventEffect {
+  planCostMultiplier: number;
+  stepCostMultiplier: number;
+  reviewTrustOffset: number;
+  dailyBudgetDelta: number;
+  dailyTrustDelta: number;
+  marketPnlBias: number;
+}
+
+export interface GameEventTemplate {
+  id: string;
+  title: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  durationDays: number;
+  effect: GameEventEffect;
+}
+
+export interface ActiveGameEvent extends GameEventTemplate {
+  startedAt: string;
+  startDay: number;
+  remainingDays: number;
+}
+
+export interface QuarterSettlementRecord {
+  quarterNo: number;
+  objectiveId: string;
+  objectiveTitle: string;
+  result: 'great' | 'pass' | 'fail';
+  score: QuarterScoreBreakdown;
+  settledAt: string;
+}
+
+export interface QuarterState {
+  quarterNo: number;
+  dayInQuarter: number;
+  totalDays: number;
+  objective: QuarterObjective;
+  currentScore: QuarterScoreBreakdown;
+  lastSettlement: QuarterScoreBreakdown | null;
+  activeEvent: ActiveGameEvent | null;
+  history: QuarterSettlementRecord[];
+}
+
 // --- Single Factor Workflow Steps ---
 export interface SingleFactorStep {
   id: string; // e.g. "S0", "S1", ... "S16"
@@ -450,6 +516,7 @@ export interface GameState {
   oosRegistry: Record<string, string>;
   theses: Thesis[];
   resources: ResourceState;
+  quarter: QuarterState;
 }
 
 // ============ Token Cost Config ============
@@ -465,6 +532,96 @@ export const EXPERIMENT_PACK_LIBRARY: Record<ExperimentPackType, { label: string
   cost_shock: { label: '成本冲击包', desc: '评估成本上升后的可行性', cost: 140000 },
   counter_example: { label: '反例验证包', desc: '主动寻找命题失效场景', cost: 100000 },
 };
+
+export const QUARTER_OBJECTIVE_LIBRARY: QuarterObjective[] = [
+  {
+    id: 'qobj-balance',
+    title: '稳中求进',
+    summary: '保持稳健的同时提升收益质量。',
+    targetMix: { return: 30, drawdown: 25, robustness: 25, trust: 20 },
+  },
+  {
+    id: 'qobj-return-push',
+    title: '收益冲刺',
+    summary: '允许更激进探索，但不能牺牲基本纪律。',
+    targetMix: { return: 45, drawdown: 15, robustness: 20, trust: 20 },
+  },
+  {
+    id: 'qobj-risk-guard',
+    title: '回撤防守',
+    summary: '优先稳定与风险控制，压缩尾部风险。',
+    targetMix: { return: 20, drawdown: 35, robustness: 25, trust: 20 },
+  },
+  {
+    id: 'qobj-audit-season',
+    title: '审计季度',
+    summary: '强调证据链完整性与结论可复核。',
+    targetMix: { return: 20, drawdown: 20, robustness: 25, trust: 35 },
+  },
+];
+
+export const GAME_EVENT_LIBRARY: GameEventTemplate[] = [
+  {
+    id: 'evt-liquidity-crunch',
+    title: '流动性收缩',
+    description: '盘口变薄，执行成本上升，研究预算被挤压。',
+    severity: 'high',
+    durationDays: 3,
+    effect: {
+      planCostMultiplier: 1.12,
+      stepCostMultiplier: 1.1,
+      reviewTrustOffset: -1,
+      dailyBudgetDelta: -12000,
+      dailyTrustDelta: -1,
+      marketPnlBias: -0.35,
+    },
+  },
+  {
+    id: 'evt-trending-market',
+    title: '趋势单边行情',
+    description: '趋势类策略表现改善，组合收益弹性增强。',
+    severity: 'medium',
+    durationDays: 3,
+    effect: {
+      planCostMultiplier: 1,
+      stepCostMultiplier: 1,
+      reviewTrustOffset: 0,
+      dailyBudgetDelta: 6000,
+      dailyTrustDelta: 0,
+      marketPnlBias: 0.42,
+    },
+  },
+  {
+    id: 'evt-audit-drill',
+    title: '监管抽查周',
+    description: '审计要求提高，证据不足会被放大惩罚。',
+    severity: 'medium',
+    durationDays: 2,
+    effect: {
+      planCostMultiplier: 1.05,
+      stepCostMultiplier: 1.03,
+      reviewTrustOffset: -2,
+      dailyBudgetDelta: -4000,
+      dailyTrustDelta: -1,
+      marketPnlBias: -0.08,
+    },
+  },
+  {
+    id: 'evt-data-provider-upgrade',
+    title: '数据服务升级',
+    description: '数据质量改善，研究效率与可信度提升。',
+    severity: 'low',
+    durationDays: 2,
+    effect: {
+      planCostMultiplier: 0.94,
+      stepCostMultiplier: 0.95,
+      reviewTrustOffset: 1,
+      dailyBudgetDelta: 9000,
+      dailyTrustDelta: 1,
+      marketPnlBias: 0.15,
+    },
+  },
+];
 
 export const KLINE_PERIODS = [
   { value: '1m', label: '1分钟' },

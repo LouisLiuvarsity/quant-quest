@@ -1,5 +1,5 @@
 import type { CompanyRanking, GameState, Researcher } from './schema';
-import { AVAILABLE_SKINS } from './schema';
+import { AVAILABLE_SKINS, QUARTER_OBJECTIVE_LIBRARY } from './schema';
 
 const INITIAL_RESEARCHERS: Researcher[] = [
   { id: 'r1', skin: AVAILABLE_SKINS[0], role: '因子研究', status: 'idle', progress: 0, totalTokensUsed: 0, tasksCompleted: 0 },
@@ -17,6 +17,14 @@ const INITIAL_RANKINGS: CompanyRanking[] = [
   { rank: 7, name: 'AlphaWave', ceo: 'WaveRider', totalPnl: 15000, strategies: 2, researchers: 2, factorsDiscovered: 4 },
   { rank: 8, name: '我的量化基金', ceo: 'Player', totalPnl: 0, strategies: 0, researchers: 3, factorsDiscovered: 0 },
 ];
+
+const INITIAL_QUARTER_SCORE = {
+  return: 50,
+  drawdown: 50,
+  robustness: 50,
+  trust: 65,
+  total: 54,
+};
 
 export const INITIAL_STATE: GameState = {
   companyName: '我的量化基金',
@@ -44,5 +52,15 @@ export const INITIAL_STATE: GameState = {
     maxConcurrentTheses: 3,
     oosTickets: 2,
     trustScore: 65,
+  },
+  quarter: {
+    quarterNo: 1,
+    dayInQuarter: 1,
+    totalDays: 20,
+    objective: QUARTER_OBJECTIVE_LIBRARY[0],
+    currentScore: INITIAL_QUARTER_SCORE,
+    lastSettlement: null,
+    activeEvent: null,
+    history: [],
   },
 };

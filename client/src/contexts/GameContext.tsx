@@ -1,16 +1,22 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import {
+  GAME_EVENT_LIBRARY,
+  QUARTER_OBJECTIVE_LIBRARY,
   AVAILABLE_SKINS,
   EXPERIMENT_PACK_LIBRARY,
   MULTI_FACTOR_STEPS,
   SINGLE_FACTOR_STEPS,
   TOKEN_COSTS,
+  type ActiveGameEvent,
   type ExperimentPackType,
   type FactorCard,
   type GameNotification,
   type GameState,
   type InsightViewMode,
   type MultiFactorConfig,
+  type QuarterObjective,
+  type QuarterScoreBreakdown,
+  type QuarterTargetMix,
   type Thesis,
   type ThesisGoal,
   type ThesisStatus,
@@ -47,6 +53,7 @@ export * from './game/schema';
 export { getDecisionOptions } from './game/decisions';
 
 type ThesisFinalOutcome = Extract<ThesisStatus, 'passed' | 'failed' | 'parked' | 'adopted' | 'hold' | 'rejected'>;
+type QuarterAdvanceReason = 'manual' | 'task_complete' | 'review';
 
 interface CreateThesisInput {
   type: ThesisType;
@@ -58,6 +65,14 @@ interface CreateThesisInput {
 const DEFAULT_PACKS_BY_TYPE: Record<ThesisType, ExperimentPackType[]> = {
   factor: ['parameter_sweep', 'robustness_check'],
   portfolio: ['robustness_check', 'cost_shock'],
+};
+
+const EMPTY_QUARTER_SCORE: QuarterScoreBreakdown = {
+  return: 50,
+  drawdown: 50,
+  robustness: 50,
+  trust: 50,
+  total: 50,
 };
 
 const nowCN = () => new Date().toLocaleString('zh-CN');
@@ -80,6 +95,58 @@ const buildThesisTitle = (type: ThesisType, hypothesis: string) => {
 const calcPackBudget = (packs: ExperimentPackType[]) => (
   packs.reduce((sum, pack) => sum + (EXPERIMENT_PACK_LIBRARY[pack]?.cost ?? 0), 0)
 );
+
+const pickQuarterObjective = (quarterNo: number): QuarterObjective => (
+  QUARTER_OBJECTIVE_LIBRARY[(quarterNo - 1) % QUARTER_OBJECTIVE_LIBRARY.length]
+);
+
+const computeQuarterScore = (
+  mix: QuarterTargetMix,
+  input: {
+    totalPnl: number;
+    liveStrategies: number;
+    passedFactors: number;
+    adoptedPortfolios: number;
+    passedTheses: number;
+    adoptedTheses: number;
+    oosConsumed: number;
+    trustScore: number;
+  },
+): QuarterScoreBreakdown => {
+  const returnScore = Math.round(clampNumber(
+    42 + input.totalPnl / 260 + input.liveStrategies * 6 + input.adoptedPortfolios * 11,
+    0,
+    100,
+  ));
+  const drawdownScore = Math.round(clampNumber(
+    36 + input.trustScore * 0.58 - Math.max(0, input.liveStrategies - 3) * 4,
+    0,
+    100,
+  ));
+  const robustnessScore = Math.round(clampNumber(
+    34 + input.passedFactors * 4 + input.passedTheses * 5 + input.adoptedTheses * 8 + input.oosConsumed * 3,
+    0,
+    100,
+  ));
+  const trustScore = Math.round(clampNumber(input.trustScore, 0, 100));
+  const total = Math.round(
+    (returnScore * mix.return + drawdownScore * mix.drawdown + robustnessScore * mix.robustness + trustScore * mix.trust) / 100,
+  );
+  return {
+    return: returnScore,
+    drawdown: drawdownScore,
+    robustness: robustnessScore,
+    trust: trustScore,
+    total: Math.round(clampNumber(total, 0, 100)),
+  };
+};
+
+const buildActiveEvent = (template: typeof GAME_EVENT_LIBRARY[number], dayInQuarter: number): ActiveGameEvent => ({
+  ...template,
+  startedAt: nowCN(),
+  startDay: dayInQuarter,
+  remainingDays: template.durationDays,
+});
 
 const createFactorEvidenceNode = (card: FactorCard, runId: string) => ({
   id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -135,6 +202,7 @@ interface GameContextType {
   planThesis: (thesisId: string, packs?: ExperimentPackType[]) => void;
   launchThesis: (thesisId: string, researcherId: string) => void;
   reviewThesis: (thesisId: string, outcome: ThesisFinalOutcome, reason: string) => void;
+  advanceQuarterDay: (reason?: QuarterAdvanceReason) => void;
   startSingleFactorTask: (researcherId: string, config: SingleFactorConfig, thesisId?: string) => void;
   startMultiFactorTask: (researcherId: string, config: MultiFactorConfig, thesisId?: string) => void;
   resumeTask: (taskId: string, decision?: ResumeDecisionInput) => void;
@@ -231,6 +299,209 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, insightView: mode }));
   }, []);
 
+  const advanceQuarterDay = useCallback((reason: QuarterAdvanceReason = 'manual') => {
+    const queuedNotifications: Array<{ type: GameNotification['type']; title: string; message: string }> = [];
+
+    setState(prev => {
+      let resources = prev.resources;
+      let credits = prev.credits;
+      let totalCredits = prev.totalCredits;
+      let strategies = prev.strategies;
+      const hasLiveStrategies = prev.strategies.some(strategy => strategy.status === 'live');
+      const marketBias = prev.quarter.activeEvent?.effect.marketPnlBias ?? 0;
+
+      if (hasLiveStrategies) {
+        const objectiveBias = (prev.quarter.objective.targetMix.return - prev.quarter.objective.targetMix.drawdown) / 100;
+        strategies = prev.strategies.map(strategy => {
+          if (strategy.status !== 'live' || !strategy.liveResult) return strategy;
+          const baseNoise = (Math.random() - 0.46) * 120;
+          const drift = objectiveBias * 12 + marketBias * 45;
+          const trustAmplifier = 1 + ((prev.resources.trustScore - 50) / 260);
+          const todayPnl = Math.round((baseNoise + drift) * trustAmplifier);
+          const pnl = Number((strategy.liveResult.pnl + todayPnl).toFixed(2));
+          return {
+            ...strategy,
+            liveResult: {
+              ...strategy.liveResult,
+              todayPnl,
+              pnl,
+              pnlPercent: Number((pnl / 1000).toFixed(4)),
+              runningDays: strategy.liveResult.runningDays + 1,
+            },
+          };
+        });
+      }
+
+      const totalPnl = hasLiveStrategies
+        ? Number(strategies
+          .filter(strategy => strategy.status === 'live')
+          .reduce((sum, strategy) => sum + (strategy.liveResult?.pnl ?? 0), 0)
+          .toFixed(2))
+        : prev.totalPnl;
+
+      if (prev.quarter.activeEvent) {
+        resources = {
+          ...resources,
+          researchBudget: Math.max(0, resources.researchBudget + prev.quarter.activeEvent.effect.dailyBudgetDelta),
+          trustScore: clampScore(resources.trustScore + prev.quarter.activeEvent.effect.dailyTrustDelta),
+        };
+      }
+
+      let dayInQuarter = prev.quarter.dayInQuarter + 1;
+      let activeEvent = prev.quarter.activeEvent ? { ...prev.quarter.activeEvent } : null;
+      if (activeEvent) {
+        activeEvent.remainingDays -= 1;
+        if (activeEvent.remainingDays <= 0) {
+          queuedNotifications.push({
+            type: 'info',
+            title: '市场事件结束',
+            message: `${activeEvent.title} 已结束，市场恢复常态波动。`,
+          });
+          activeEvent = null;
+        }
+      }
+
+      if (!activeEvent && dayInQuarter >= 4 && dayInQuarter % 4 === 0 && Math.random() < 0.36) {
+        const template = GAME_EVENT_LIBRARY[Math.floor(Math.random() * GAME_EVENT_LIBRARY.length)];
+        activeEvent = buildActiveEvent(template, dayInQuarter);
+        queuedNotifications.push({
+          type: template.severity === 'high' ? 'warning' : 'info',
+          title: '市场事件触发',
+          message: `${template.title}（持续 ${template.durationDays} 天）：${template.description}`,
+        });
+      }
+
+      const liveStrategies = strategies.filter(strategy => strategy.status === 'live').length;
+      const passedFactors = prev.factorCards.filter(card => card.status === 'passed').length;
+      const adoptedPortfolios = prev.portfolioCards.filter(card => card.status === 'adopted').length;
+      const passedTheses = prev.theses.filter(thesis => thesis.status === 'passed').length;
+      const adoptedTheses = prev.theses.filter(thesis => thesis.status === 'adopted').length;
+      const oosConsumed = Object.keys(prev.oosRegistry).length;
+
+      const currentScore = computeQuarterScore(prev.quarter.objective.targetMix, {
+        totalPnl,
+        liveStrategies,
+        passedFactors,
+        adoptedPortfolios,
+        passedTheses,
+        adoptedTheses,
+        oosConsumed,
+        trustScore: resources.trustScore,
+      });
+
+      let quarter = {
+        ...prev.quarter,
+        dayInQuarter,
+        currentScore,
+        activeEvent,
+      };
+
+      if (dayInQuarter > prev.quarter.totalDays) {
+        const score = currentScore;
+        const result: 'great' | 'pass' | 'fail' = score.total >= 78 ? 'great' : score.total >= 62 ? 'pass' : 'fail';
+        let budgetDelta = 0;
+        let trustDelta = 0;
+        let oosDelta = 0;
+        let creditsDelta = 0;
+        if (result === 'great') {
+          budgetDelta = 220000;
+          trustDelta = 6;
+          oosDelta = 1;
+          creditsDelta = 160000;
+        } else if (result === 'pass') {
+          budgetDelta = 120000;
+          trustDelta = 2;
+          oosDelta = 0;
+          creditsDelta = 80000;
+        } else {
+          budgetDelta = -50000;
+          trustDelta = -6;
+          oosDelta = 0;
+          creditsDelta = -60000;
+        }
+
+        resources = {
+          ...resources,
+          researchBudget: Math.max(0, resources.researchBudget + budgetDelta),
+          trustScore: clampScore(resources.trustScore + trustDelta),
+          oosTickets: Math.max(0, resources.oosTickets + oosDelta),
+        };
+        credits = Math.max(0, credits + creditsDelta);
+        totalCredits = Math.max(totalCredits, credits);
+
+        queuedNotifications.push({
+          type: result === 'fail' ? 'warning' : 'success',
+          title: `Q${prev.quarter.quarterNo} 季度结算`,
+          message: `得分 ${score.total}（收益${score.return}/回撤${score.drawdown}/稳健${score.robustness}/信任${score.trust}）`,
+        });
+
+        const nextQuarterNo = prev.quarter.quarterNo + 1;
+        const nextObjective = pickQuarterObjective(nextQuarterNo);
+        queuedNotifications.push({
+          type: 'info',
+          title: `Q${nextQuarterNo} 新目标`,
+          message: `${nextObjective.title}：${nextObjective.summary}`,
+        });
+
+        quarter = {
+          quarterNo: nextQuarterNo,
+          dayInQuarter: 1,
+          totalDays: prev.quarter.totalDays,
+          objective: nextObjective,
+          currentScore: score,
+          lastSettlement: score,
+          activeEvent: null,
+          history: [
+            {
+              quarterNo: prev.quarter.quarterNo,
+              objectiveId: prev.quarter.objective.id,
+              objectiveTitle: prev.quarter.objective.title,
+              result,
+              score,
+              settledAt: nowCN(),
+            },
+            ...prev.quarter.history,
+          ].slice(0, 12),
+        };
+        dayInQuarter = 1;
+      }
+
+      if (reason === 'manual') {
+        queuedNotifications.push({
+          type: 'info',
+          title: '运营日推进',
+          message: `Q${quarter.quarterNo} Day ${dayInQuarter}/${quarter.totalDays} 已结算。`,
+        });
+      }
+
+      const playerFactorCount = prev.factorCards.filter(card => card.status === 'passed').length;
+      const updatedRankings = [...prev.rankings.map(company => company.name === prev.companyName
+        ? {
+          ...company,
+          totalPnl: Math.round(totalPnl),
+          strategies: liveStrategies,
+          researchers: prev.researchers.length,
+          factorsDiscovered: playerFactorCount,
+        }
+        : company)]
+        .sort((a, b) => b.totalPnl - a.totalPnl)
+        .map((company, index) => ({ ...company, rank: index + 1 }));
+
+      return {
+        ...prev,
+        strategies,
+        totalPnl,
+        credits,
+        totalCredits,
+        resources,
+        quarter,
+        rankings: updatedRankings,
+      };
+    });
+
+    queuedNotifications.forEach(item => addNotification(item.type, item.title, item.message));
+  }, [addNotification]);
+
   const createThesis = useCallback((input: CreateThesisInput) => {
     const hypothesis = input.hypothesis.trim();
     if (!hypothesis) {
@@ -271,7 +542,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
       const resolvedPacks = (packs && packs.length > 0 ? packs : DEFAULT_PACKS_BY_TYPE[thesis.type])
         .filter((pack, idx, arr) => arr.indexOf(pack) === idx);
-      const plannedBudget = calcPackBudget(resolvedPacks);
+      const costMultiplier = prev.quarter.activeEvent?.effect.planCostMultiplier ?? 1;
+      const plannedBudget = Math.round(calcPackBudget(resolvedPacks) * costMultiplier);
       if (plannedBudget <= 0 || prev.resources.researchBudget < plannedBudget) {
         outcome.result = 'insufficient_budget';
         return prev;
@@ -325,7 +597,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       reviewedTitle = thesis.title;
       if (!['needs_review', 'parked'].includes(thesis.status)) return prev;
       applied = true;
-      const trustScore = clampScore(prev.resources.trustScore + trustDeltaMap[outcome]);
+      const trustModifier = prev.quarter.activeEvent?.effect.reviewTrustOffset ?? 0;
+      const trustScore = clampScore(prev.resources.trustScore + trustDeltaMap[outcome] + trustModifier);
       const refund = (outcome === 'failed' || outcome === 'rejected')
         ? Math.round(thesis.plannedBudget * 0.12)
         : 0;
@@ -353,7 +626,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return;
     }
     addNotification('info', '命题裁决完成', `${reviewedTitle} → ${outcome.toUpperCase()}`);
-  }, [addNotification]);
+    advanceQuarterDay('review');
+  }, [addNotification, advanceQuarterDay]);
 
   const launchThesis = useCallback((thesisId: string, researcherId: string) => {
     const thesis = state.theses.find(item => item.id === thesisId);
@@ -418,6 +692,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // --- Step-by-step task simulation ---
   const advanceTaskStep = useCallback((taskId: string, researcherId: string, taskType: TaskType) => {
     const steps = taskType === 'single_factor' ? SINGLE_FACTOR_STEPS : MULTI_FACTOR_STEPS;
+    let shouldAdvanceDay = false;
 
     setState(prev => {
       const task = prev.activeTasks.find(t => t.id === taskId);
@@ -427,6 +702,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       // Task completed
       if (nextStepIndex >= steps.length) {
+        shouldAdvanceDay = true;
         let newFactorCards = prev.factorCards;
         let newPortfolioCards = prev.portfolioCards;
         let newReports = prev.reports;
@@ -521,7 +797,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const nextStep = steps[nextStepIndex];
       const overallProgress = Math.round(((nextStepIndex) / steps.length) * 100);
       let newLogs = [...task.logs, ...generateStepLogs(steps, nextStepIndex)];
-      const stepCost = Math.round(TOKEN_COSTS[taskType].perStep * task.stepCostMultiplier);
+      const eventStepMultiplier = prev.quarter.activeEvent?.effect.stepCostMultiplier ?? 1;
+      const stepCost = Math.round(TOKEN_COSTS[taskType].perStep * task.stepCostMultiplier * eventStepMultiplier);
       let guardLog = task.guardLog;
       let oosConsumedAt = task.oosConsumedAt;
       let oosRegistry = prev.oosRegistry;
@@ -683,7 +960,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         ),
       };
     });
-  }, []);
+    if (shouldAdvanceDay) {
+      setTimeout(() => advanceQuarterDay('task_complete'), 0);
+    }
+  }, [advanceQuarterDay]);
 
   const startSingleFactorTask = useCallback((researcherId: string, config: SingleFactorConfig, thesisId?: string) => {
     if (!state.projectConfig) {
@@ -989,6 +1269,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       planThesis,
       launchThesis,
       reviewThesis,
+      advanceQuarterDay,
       startSingleFactorTask,
       startMultiFactorTask,
       resumeTask,

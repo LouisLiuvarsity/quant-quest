@@ -26,6 +26,7 @@ export function TopHUD() {
   const activeTheses = state.theses.filter(item => ['running', 'oos_locked', 'oos_running', 'needs_review'].includes(item.status)).length;
   const oosConsumedCount = Object.keys(state.oosRegistry).length;
   const oosUnlocked = oosConsumedCount > 0;
+  const activeEvent = state.quarter.activeEvent;
 
   return (
     <header className="relative z-50 border-b border-[oklch(0.22_0.02_260)] bg-[oklch(0.07_0.012_260_/_0.94)] backdrop-blur-xl">
@@ -150,9 +151,12 @@ export function TopHUD() {
             { label: '通过因子', value: passedFactors, color: 'oklch(0.75 0.12 200)' },
             { label: '采纳组合', value: adoptedPortfolios, color: 'oklch(0.72 0.19 155)' },
             { label: '命题池', value: activeTheses, color: 'oklch(0.75 0.12 200)' },
+            { label: '季度', value: `Q${state.quarter.quarterNo} D${state.quarter.dayInQuarter}/${state.quarter.totalDays}`, color: 'oklch(0.75 0.12 200)' },
+            { label: '季度分', value: state.quarter.currentScore.total, color: 'oklch(0.82 0.15 85)' },
             { label: '实盘策略', value: liveStrategies, color: 'oklch(0.63 0.22 25)' },
             { label: '审判券', value: state.resources.oosTickets, color: state.resources.oosTickets > 0 ? 'oklch(0.72 0.19 155)' : 'oklch(0.63 0.22 25)' },
             { label: '信任', value: state.resources.trustScore, color: 'oklch(0.82 0.15 85)' },
+            { label: '事件', value: activeEvent ? `${activeEvent.title}(${activeEvent.remainingDays}d)` : '平稳', color: activeEvent ? 'oklch(0.63 0.22 25)' : 'oklch(0.72 0.19 155)' },
             { label: 'OOS', value: oosUnlocked ? `已消费${oosConsumedCount}` : '未消费', color: oosUnlocked ? 'oklch(0.72 0.19 155)' : 'oklch(0.82 0.15 85)' },
             { label: 'P&L', value: `${state.totalPnl >= 0 ? '+' : ''}$${Math.round(state.totalPnl).toLocaleString()}`, color: state.totalPnl >= 0 ? 'oklch(0.72 0.19 155)' : 'oklch(0.63 0.22 25)' },
           ].map(item => (

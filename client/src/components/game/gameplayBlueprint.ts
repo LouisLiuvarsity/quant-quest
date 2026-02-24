@@ -128,12 +128,21 @@ export const buildAiCoachTips = (state: GameState): string[] => {
   const passedFactors = state.factorCards.filter(card => card.status === 'passed').length;
   const adoptedPortfolios = state.portfolioCards.filter(card => card.status === 'adopted').length;
   const liveStrategies = state.strategies.filter(strategy => strategy.status === 'live').length;
+  const activeEvent = state.quarter.activeEvent;
 
   if (!state.projectConfig) {
     return [
       '先锁定项目口径：K 线、资产池筛选与 IS/VAL/OOS 切分。',
       '优先使用三段切分，避免后续多因子阶段的 OOS 污染。',
       '确认配置后再给研究员派单，避免重复返工。',
+    ];
+  }
+
+  if (activeEvent) {
+    return [
+      `当前事件：${activeEvent.title}（剩余 ${activeEvent.remainingDays} 天），先考虑它对成本与信任分的冲击。`,
+      '高不确定环境下优先稳健命题，减少一次性激进押注。',
+      '若季度分下降，先补审计质量与回撤控制，再追收益。',
     ];
   }
 

@@ -14,7 +14,16 @@ import { TaskMonitor } from './research/TaskMonitor';
 
 // --- Main Research Panel ---
 export function ResearchPanel() {
-  const { state, setProjectConfig, setPlayMode, createThesis, planThesis, launchThesis, reviewThesis } = useGame();
+  const {
+    state,
+    setProjectConfig,
+    setPlayMode,
+    createThesis,
+    planThesis,
+    launchThesis,
+    reviewThesis,
+    advanceQuarterDay,
+  } = useGame();
   const [view, setView] = useState<'main' | 'config' | 'single_factor' | 'multi_factor'>('main');
   const [selectedResearcherId, setSelectedResearcherId] = useState<string>('');
   const [thesisType, setThesisType] = useState<ThesisType>('factor');
@@ -25,7 +34,8 @@ export function ResearchPanel() {
   const leadIdleResearcher = idleResearchers[0];
   const activeTasks = state.activeTasks.filter(t => t.status !== 'completed');
   const completedTasks = state.activeTasks.filter(t => t.status === 'completed').slice(0, 5);
-  const waitingTasks = state.activeTasks.filter(t => t.status === 'paused').length;
+  const waitingTasks = state.activeTasks.filter(t => t.status === 'paused').length
+    + state.theses.filter(item => item.status === 'needs_review').length;
   const passedFactors = state.factorCards.filter(f => f.status === 'passed').length;
   const adoptedPortfolios = state.portfolioCards.filter(p => p.status === 'adopted').length;
   const runningTheses = state.theses.filter(item => ['running', 'oos_locked', 'oos_running'].includes(item.status)).length;
@@ -33,6 +43,9 @@ export function ResearchPanel() {
   const isGuidedMode = state.playMode === 'guided';
   const hasThreeWaySplit = state.projectConfig?.splitMode === 'three_way';
   const canStartMulti = passedFactors >= 2 && hasThreeWaySplit;
+  const quarter = state.quarter;
+  const targetMix = quarter.objective.targetMix;
+  const activeEvent = quarter.activeEvent;
 
   const createThesisFromForm = () => {
     const hypothesis = thesisHypothesis.trim();
@@ -196,6 +209,87 @@ export function ResearchPanel() {
               {index + 1}. {item}
             </span>
           ))}
+        </div>
+      </div>
+
+      <div className="border-2 border-[oklch(0.26_0.03_260)] bg-[oklch(0.1_0.016_260)] p-3 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="font-pixel text-[7px] text-[oklch(0.82_0.15_85)]">📅 季度经营层</p>
+            <p className="font-display text-[11px] text-[oklch(0.82_0.02_260)] mt-1">{quarter.objective.title}</p>
+            <p className="font-display text-[10px] text-[oklch(0.58_0.02_260)] mt-1 leading-relaxed">{quarter.objective.summary}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-pixel text-[6px] text-[oklch(0.45_0.02_260)]">季度进度</p>
+            <p className="font-mono-data text-sm text-[oklch(0.72_0.19_155)]">Q{quarter.quarterNo} · {quarter.dayInQuarter}/{quarter.totalDays}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1.5">
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.12_0.02_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">收益权重</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.72_0.19_155)]">{targetMix.return}%</p>
+          </div>
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.12_0.02_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">回撤权重</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.82_0.15_85)]">{targetMix.drawdown}%</p>
+          </div>
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.12_0.02_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">稳健权重</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.75_0.12_200)]">{targetMix.robustness}%</p>
+          </div>
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.12_0.02_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">信任权重</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.55_0.2_265)]">{targetMix.trust}%</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-5 gap-1.5">
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.09_0.015_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">收益</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.72_0.19_155)]">{quarter.currentScore.return}</p>
+          </div>
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.09_0.015_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">回撤</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.82_0.15_85)]">{quarter.currentScore.drawdown}</p>
+          </div>
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.09_0.015_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">稳健</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.75_0.12_200)]">{quarter.currentScore.robustness}</p>
+          </div>
+          <div className="border border-[oklch(0.22_0.025_260)] bg-[oklch(0.09_0.015_260)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">信任</p>
+            <p className="font-mono-data text-[10px] text-[oklch(0.55_0.2_265)]">{quarter.currentScore.trust}</p>
+          </div>
+          <div className="border border-[oklch(0.3_0.03_260)] bg-[oklch(0.82_0.15_85_/_0.08)] p-1.5 text-center">
+            <p className="font-pixel text-[5px] text-[oklch(0.45_0.02_260)]">总分</p>
+            <p className="font-mono-data text-[11px] text-[oklch(0.82_0.15_85)]">{quarter.currentScore.total}</p>
+          </div>
+        </div>
+
+        {activeEvent ? (
+          <div className="border border-[oklch(0.63_0.22_25_/_0.4)] bg-[oklch(0.63_0.22_25_/_0.08)] p-2.5">
+            <p className="font-pixel text-[6px] text-[oklch(0.82_0.15_85)]">⚠️ 活动事件：{activeEvent.title}（剩余 {activeEvent.remainingDays} 天）</p>
+            <p className="font-display text-[10px] text-[oklch(0.72_0.02_260)] mt-1 leading-relaxed">{activeEvent.description}</p>
+          </div>
+        ) : (
+          <div className="border border-[oklch(0.24_0.03_260)] bg-[oklch(0.12_0.02_260)] p-2.5">
+            <p className="font-display text-[10px] text-[oklch(0.58_0.02_260)]">当前无市场扰动事件，环境平稳。</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => advanceQuarterDay('manual')}
+            className="font-pixel text-[7px] px-3 py-2 border border-[oklch(0.75_0.12_200_/_0.55)] text-[oklch(0.75_0.12_200)] bg-[oklch(0.75_0.12_200_/_0.12)] hover:brightness-110 transition-all"
+          >
+            ⏭ 推进 1 天（经营结算）
+          </button>
+          {quarter.lastSettlement ? (
+            <p className="font-display text-[9px] text-[oklch(0.55_0.02_260)]">
+              上季结算：{quarter.lastSettlement.total} 分
+            </p>
+          ) : null}
         </div>
       </div>
 
