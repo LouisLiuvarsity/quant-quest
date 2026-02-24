@@ -128,7 +128,6 @@ export function LearningPanel() {
                     selectedFactorIds: card.thesisType === 'portfolio' ? thesis?.selectedFactorIds : undefined,
                     sourceLearningCardId: card.id,
                   });
-                  if (!card.reviewed) markLearningCardReviewed(card.id);
                   setActivePanel('research');
                 }}
                 disabled={hasRetryDraft}
