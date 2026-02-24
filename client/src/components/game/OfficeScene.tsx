@@ -20,15 +20,13 @@ const TASK_TYPE_LABELS: Record<string, string> = {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
-const OFFICE_BG = 'https://private-us-east-1.manuscdn.com/sessionFile/QeSitOBhLnUEOAHGV2ohey/sandbox/W11Rk9GbnhEmhaFn5kwVyf-img-1_1771586922000_na1fn_b2ZmaWNlLWJn.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvUWVTaXRPQmhMblVFT0FIR1Yyb2hleS9zYW5kYm94L1cxMVJrOUdibmhFbWhhRm41a3dWeWYtaW1nLTFfMTc3MTU4NjkyMjAwMF9uYTFmbl9iMlptYVdObExXSm4ucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTkyMCxoXzE5MjAvZm9ybWF0LHdlYnAvcXVhbGl0eSxxXzgwIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=fpZMiz0l-C7HQivOmwLcjwwZ2qEeVsjDf4E3tXBiIAPkyPeluwqpophPHk1Y0VHRTbFMWZnK4OfNDwI25vtEkzu6xQ-hWuW8NPLA78zOkyxa7x33ZfR-nunZpNWwlWrR-Uv1c0WCAkmYFjyjgO5aPL-ND1E1Ju4x~Y6-CM4aW4CXedgYAdc9Zw0NkwurfWXr5nzLIpunk~RiTKE45ej06rEmiCAE43e3LBk0QgpkwbOU8GmxYE93GSw7jfVwf6yogSfrrdestb8RKUr7FIpJXnm-NAC-mO35p6UJyGqCczUBkbiXOE0EZSPs2X8BQ-xaIwyp6xJRjYBNtAvW6UReLg__';
-
 const DESK_POSITIONS = [
-  { x: 18, y: 32, deskLabel: 'A1' },
-  { x: 42, y: 32, deskLabel: 'A2' },
-  { x: 18, y: 58, deskLabel: 'B1' },
-  { x: 42, y: 58, deskLabel: 'B2' },
-  { x: 66, y: 45, deskLabel: 'C1' },
-  { x: 66, y: 68, deskLabel: 'C2' },
+  { x: 20, y: 30, deskLabel: 'A1' },
+  { x: 46, y: 30, deskLabel: 'A2' },
+  { x: 20, y: 58, deskLabel: 'B1' },
+  { x: 46, y: 58, deskLabel: 'B2' },
+  { x: 71, y: 43, deskLabel: 'C1' },
+  { x: 71, y: 70, deskLabel: 'C2' },
 ];
 
 const STATUS_EMOJIS: Record<string, string> = {
@@ -185,13 +183,44 @@ export function OfficeScene() {
       }} />
 
       <div className="relative w-full h-full max-w-[1460px] max-h-[860px] mx-auto">
-        <img
-          src={OFFICE_BG}
-          alt="Pixel Office"
-          className="w-full h-full object-contain select-none"
-          draggable={false}
-          style={{ imageRendering: 'auto' }}
-        />
+        <div className="absolute inset-[4%] rounded-[28px] border-2 border-[oklch(0.24_0.03_260)] bg-[linear-gradient(160deg,oklch(0.18_0.03_250),oklch(0.12_0.02_260))] shadow-[inset_0_0_0_1px_oklch(0.32_0.03_260_/_0.45)] overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-80"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, oklch(0.28 0.03 260 / 0.35) 1px, transparent 1px),
+                linear-gradient(to bottom, oklch(0.28 0.03 260 / 0.35) 1px, transparent 1px)
+              `,
+              backgroundSize: '38px 38px',
+            }}
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,oklch(0.55_0.2_265_/_0.18),transparent_40%),radial-gradient(circle_at_20%_75%,oklch(0.72_0.19_155_/_0.12),transparent_42%)]" />
+        </div>
+
+        <div className="absolute inset-0 pointer-events-none">
+          {DESK_POSITIONS.map((pos, index) => {
+            const owner = state.researchers[index];
+            const roleColor = owner ? (ROLE_COLORS[owner.role] || 'oklch(0.55 0.2 265)') : 'oklch(0.3 0.03 260)';
+            return (
+              <div
+                key={`desk-${pos.deskLabel}`}
+                className="absolute -translate-x-1/2 -translate-y-1/2 rounded-xl border px-3 py-2"
+                style={{
+                  left: `${pos.x}%`,
+                  top: `${pos.y}%`,
+                  zIndex: 4 + Math.floor(pos.y),
+                  borderColor: owner ? `${roleColor}80` : 'oklch(0.28 0.03 260)',
+                  backgroundColor: owner ? `${roleColor}1A` : 'oklch(0.1 0.015 260 / 0.7)',
+                  boxShadow: owner ? `0 0 10px ${roleColor}35` : 'none',
+                }}
+              >
+                <p className="font-pixel text-[7px]" style={{ color: owner ? roleColor : 'oklch(0.5 0.02 260)' }}>
+                  工位 {pos.deskLabel}
+                </p>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Researchers */}
         {state.researchers.map((researcher, index) => {
